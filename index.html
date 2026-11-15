@@ -91,6 +91,8 @@ button.row:active{background:#F6F3FE}
 .foot{text-align:center;margin-top:28px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .top h1{margin:0}
+.foot.ver{font-size:15px;margin-top:22px}
+.foot.ver .link{padding:10px 8px}
 
 #sheet{position:fixed;inset:0;background:rgba(35,28,79,.5);display:none;align-items:flex-end;justify-content:center;z-index:10}
 #sheet.open{display:flex}
@@ -138,6 +140,8 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "271302574571",
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
+
+const VERSION = '1.0';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -258,6 +262,20 @@ function answer(id, yes){
   if(yes) set['balances.'+q.kid] = INC(-q.cost);
   run(store.apply({ set, addLog:{kid:q.kid,id:uid(),entry:{pts:yes?-q.cost:0,label:q.label,emoji:q.emoji,by:role(),ts:Date.now(),type:yes?'prize':'declined'}} }));
   toast(yes ? `Approved ${q.label} for ${KIDS[q.kid].name}` : `Declined ${q.label}`);
+}
+
+async function checkUpdate(){
+  toast('Checking for an update\u2026');
+  try{
+    const res = await fetch(location.pathname + '?t=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error(res.status);
+    const m = (await res.text()).match(/const VERSION = '([^']+)'/);
+    if(!m) throw new Error('no version');
+    if(m[1] === VERSION) return toast(`You have the latest version (${VERSION}).`);
+    toast(`Updating to version ${m[1]}\u2026`);
+    await fetch(location.href, {cache:'reload'}).catch(() => {});
+    setTimeout(() => location.reload(), 700);
+  }catch(e){ toast('Couldn\u2019t check for an update. Check the internet connection and try again.'); }
 }
 
 /* ---------- toast + sheet ---------- */
@@ -431,7 +449,7 @@ function render(){
   if(KIDS[r]) html = kidView(r);
   else if(isParent(r) && parentOK()) html = parentView();
   else html = pickerView();
-  $('#app').innerHTML = html;
+  $('#app').innerHTML = html + `<div class="foot ver"><span class="soft">Version ${VERSION}</span><button class="link" data-act="update">Check for update</button></div>`;
   for(const k in KIDS) lastBal[k] = bal(k);
 }
 
@@ -452,7 +470,8 @@ function becomeParent(id){
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if(!b || b.closest('#sheet')) return;
   const {act,id,kind,key} = b.dataset, r = role();
-  if(act==='role'){ if(KIDS[id]){ ls.set('ep_role', id); render(); } else becomeParent(id); }
+  if(act==='update') checkUpdate();
+  else if(act==='role'){ if(KIDS[id]){ ls.set('ep_role', id); render(); } else becomeParent(id); }
   else if(act==='tab'){ ui[key] = id; render(); }
   else if(act==='kid'){ ui.kid = id; render(); }
   else if(act==='setup'){ ui.setup = !!id && isParent(r); render(); window.scrollTo(0,0); }
