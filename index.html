@@ -212,6 +212,10 @@ body.adult .xbtn{background:#EEF0F4}
 body.adult #toast{border-radius:12px}
 body.adult #toast button{border-radius:8px}
 body.adult .top{margin-bottom:14px}
+.lead{margin:22px 0 -6px}
+.whopick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.whopick .btn{min-height:56px;font-size:18px;background:var(--kid);color:#fff}
+.whopick .both{grid-column:1/-1;background:var(--ink)}
 </style>
 </head>
 <body>
@@ -236,7 +240,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.6';   // bump on every change so Check for update can see it
+const VERSION = '1.7';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -556,10 +560,20 @@ function itemSheet(kind, id){
       run(store.apply({set:{[kind+'.'+(id||uid())]:v}}));
     });
 }
+function pickSheet(bid){
+  const b = main.behaviors && main.behaviors[bid]; if(!b) return;
+  openSheet(`
+    <h3>${esc(b.emoji)} ${esc(b.label)}</h3>
+    <p class="soft">${b.pts>0 ? `Give ${signed(b.pts)}` : `Take away ${Math.abs(b.pts)}`} ${Math.abs(b.pts)===1?'point':'points'}. Who is it for?</p>
+    <div class="whopick">${Object.keys(KIDS).map(k => `<button class="btn k-${k}" name="who" value="${k}">${KIDS[k].name}</button>`).join('')}
+      <button class="btn both" name="who" value="both">Both kids</button></div>`,
+    (f, btn) => { if(!btn || !btn.value) return false; give(btn.value, b.pts, b.label, b.emoji, {id:bid, ...b}); });
+}
 function customSheet(kid, dir){
   const take = dir==='-1';
   openSheet(`
-    <h3>Custom amount for ${whoName(kid)}</h3>
+    <h3>Custom amount${kid ? ' for '+whoName(kid) : ''}</h3>
+    ${kid ? '' : `<div class="seg">${Object.keys(KIDS).map(k => `<label><input type="radio" name="kid" value="${k}"><span>${KIDS[k].name}</span></label>`).join('')}<label><input type="radio" name="kid" value="both"><span>Both</span></label></div>`}
     <div class="seg"><label><input type="radio" name="dir" value="1" ${take?'':'checked'}><span>Give points</span></label><label><input type="radio" name="dir" value="-1" ${take?'checked':''}><span>Take points away</span></label></div>
     <label class="field"><span>How many</span><input name="n" type="number" inputmode="numeric" min="1" max="999" autofocus></label>
     <label class="field"><span>What for</span><input name="label" maxlength="60" placeholder="Helped Grandpa carry groceries"></label>
@@ -568,7 +582,9 @@ function customSheet(kid, dir){
     f => {
       const num = Math.round(+f.n.value), msg = f.querySelector('.msg');
       if(!(num>=1 && num<=999)){ msg.textContent = 'Enter a number from 1 to 999.'; return false; }
-      give(kid, num*(f.dir.value==='-1'?-1:1), f.label.value.trim() || 'something special', '✏️');
+      const to = kid || (f.querySelector('[name=kid]:checked') || {}).value;
+      if(!to){ msg.textContent = 'Pick who gets it.'; return false; }
+      give(to, num*(f.dir.value==='-1'?-1:1), f.label.value.trim() || 'something special', '✏️');
     });
 }
 
@@ -657,6 +673,16 @@ function weekView(kid){
     <div class="list">${w.top.length ? w.top.map(t => `<div class="row"><span class="emo">${esc(t.emoji)}</span><div class="grow"><div class="label">${esc(t.label)}</div><div class="sub">${t.n} ${t.n===1?'time':'times'}</div></div><span class="pts ${cls(t.pts)}">${signed(t.pts)}</span></div>`).join('') : '<div class="empty">No points given or taken away yet this week.</div>'}</div>`;
 }
 
+function activities(sel, upTitle, downTitle){
+  const bs = byPts(sorted(main.behaviors)), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
+  const one = sel && sel!=='both';
+  const list = arr => arr.map(b => { const sub = one ? streakNote(sel,b) : '';
+    return `<button class="row" data-act="${sel?'give':'pick'}" data-id="${b.id}"><span class="emo">${esc(b.emoji)}</span><span class="grow"><span class="label">${esc(b.label)}</span>${sub?`<div class="sub">${esc(sub)}</div>`:''}</span><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></button>`; }).join('');
+  const head = (text, dir) => `<div class="hrow"><h2>${text}</h2><button class="btn ghost small" data-act="custom" data-id="${dir}">+ Custom amount</button></div>`;
+  return `${head(upTitle,'1')}<div class="list">${list(up) || '<div class="empty">Add ways to earn points under Set up.</div>'}</div>
+    ${head(downTitle,'-1')}<div class="list">${list(down) || '<div class="empty">Add ways to lose points under Set up.</div>'}</div>`;
+}
+
 function parentView(){
   if(ui.setup){
     const edit = (kind, arr, val) => `<div class="list">${arr.map(x => { const sub = kind==='behaviors' ? streakNote(null,x) : '';
@@ -673,19 +699,15 @@ function parentView(){
   if(!ui.kid){   // home: pick a kid; no balances on this screen
     const btn = k => { const n = waitingFor(k); return `<button class="kidbtn k-${k}" data-act="kid" data-id="${k}"><span class="e" aria-hidden="true">${KIDS[k].emoji}</span><span class="n">${KIDS[k].name}</span>${n?`<span class="badge">${n} waiting</span>`:''}</button>`; };
     return `${top}<h1>Who gets points?</h1><div class="kidpick">${Object.keys(KIDS).map(btn).join('')}</div>
-      <button class="bothbtn" data-act="kid" data-id="both">Both kids</button>`;
+      <button class="bothbtn" data-act="kid" data-id="both">Both kids</button>
+      <p class="soft lead">Or start with what they did, then pick who gets it.</p>
+      ${activities(null, 'Give points', 'Take points away')}`;
   }
   const sel = ui.kid, both = sel==='both', who = both ? 'both kids' : KIDS[sel].name;
   if(both) ui.ptab = 'give';
   let body = '';
-  if(ui.ptab==='give'){
-    const bs = byPts(sorted(main.behaviors)), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
-    const list = arr => arr.map(b => { const sub = both ? '' : streakNote(sel,b);
-      return `<button class="row" data-act="give" data-id="${b.id}"><span class="emo">${esc(b.emoji)}</span><span class="grow"><span class="label">${esc(b.label)}</span>${sub?`<div class="sub">${esc(sub)}</div>`:''}</span><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></button>`; }).join('');
-    const head = (text, dir) => `<div class="hrow"><h2>${text}</h2><button class="btn ghost small" data-act="custom" data-id="${dir}">+ Custom amount</button></div>`;
-    body = `${head(`Give ${who} points`,'1')}<div class="list">${list(up) || '<div class="empty">Add ways to earn points under Set up.</div>'}</div>
-      ${head(`Take points away from ${who}`,'-1')}<div class="list">${list(down) || '<div class="empty">Add ways to lose points under Set up.</div>'}</div>`;
-  } else if(ui.ptab==='history') body = `<h2>${who}’s history</h2>${historyList(sel,true)}`;
+  if(ui.ptab==='give') body = activities(sel, `Give ${who} points`, `Take points away from ${who}`);
+  else if(ui.ptab==='history') body = `<h2>${who}’s history</h2>${historyList(sel,true)}`;
   else body = weekView(sel);
   const back = `<div class="top"><button class="btn ghost small" data-act="kid" data-id="">‹ Kids</button><span class="soft">Signed in as ${PARENTS[role()].name}</span></div>`;
   if(both) return `${banner()}${back}<div class="bothhead"><h1>Both kids</h1><p class="soft">Points you give or take away here go to Emmie and Dawson.</p></div>${body}`;
@@ -751,6 +773,7 @@ document.addEventListener('click', e => {
   else if(isParent(r) && parentOK()){
     if(act==='give'){ const x = main.behaviors[id]; if(x) give(ui.kid, x.pts, x.label, x.emoji, {id, ...x}); }
     else if(act==='custom') customSheet(ui.kid, id);
+    else if(act==='pick') pickSheet(id);
     else if(act==='remove'){ removeEntry(b.dataset.kid, id, +b.dataset.pts); toast('Removed'); }
     else if(act==='approve') answer(id, true);
     else if(act==='papprove') answerPetition(id, true);
