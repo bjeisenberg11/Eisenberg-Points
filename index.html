@@ -151,6 +151,11 @@ button.row:active{background:#F6F3FE}
 .hrow h2{margin:0;min-width:0}
 .hrow .btn{flex:none}
 .asked{flex:none;font-weight:500}
+.kidpick{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.kidbtn{background:var(--kid);color:#fff;border-radius:22px;padding:24px 10px 20px;display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:600;font-size:22px}
+.kidbtn .e{font-size:46px;line-height:1.1}
+.kidbtn .badge{margin-top:6px}
+.bothhead{margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -175,7 +180,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.4';   // bump on every change so Check for update can see it
+const VERSION = '1.5';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -246,7 +251,7 @@ function localStore(){
 /* ---------- state ---------- */
 let store, main = null, loaded = false, loadError = '';
 const logs = {emmie:[], dawson:[]};
-const ui = {kid:'emmie', ptab:'give', ktab:'prizes', setup:false};
+const ui = {kid:null, ptab:'give', ktab:'prizes', setup:false};
 const lastBal = {};
 const ls = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} } };
 const role = () => ls.get('ep_role');
@@ -608,8 +613,14 @@ function parentView(){
         <button class="row" data-act="newpin"><span class="emo">🔑</span><span class="grow label">Change the parent PIN</span></button>
         <button class="row" data-act="switch"><span class="emo">🔁</span><span class="grow"><span class="label">Use this device as someone else</span><div class="sub">Signed in as ${PARENTS[role()].name}</div></span></button></div>`;
   }
+  const top = `${banner()}<div class="top"><span class="soft">Signed in as ${PARENTS[role()].name}</span><button class="btn ghost small" data-act="setup" data-id="1">⚙️ Set up</button></div>`;
+  if(!ui.kid){   // home: pick a kid; no balances on this screen
+    const btn = k => { const n = waitingFor(k); return `<button class="kidbtn k-${k}" data-act="kid" data-id="${k}"><span class="e" aria-hidden="true">${KIDS[k].emoji}</span><span class="n">${KIDS[k].name}</span>${n?`<span class="badge">${n} waiting</span>`:''}</button>`; };
+    return `${top}<h1>Who gets points?</h1><div class="kidpick">${Object.keys(KIDS).map(btn).join('')}</div>
+      <button class="bothbtn" data-act="kid" data-id="both">Both kids</button>`;
+  }
   const sel = ui.kid, both = sel==='both', who = both ? 'both kids' : KIDS[sel].name;
-  const asks = sorted(main.requests).sort((a,b)=>a.ts-b.ts);
+  if(both) ui.ptab = 'give';
   let body = '';
   if(ui.ptab==='give'){
     const bs = byPts(sorted(main.behaviors)), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
@@ -618,13 +629,14 @@ function parentView(){
     const head = (text, dir) => `<div class="hrow"><h2>${text}</h2><button class="btn ghost small" data-act="custom" data-id="${dir}">+ Custom amount</button></div>`;
     body = `${head(`Give ${who} points`,'1')}<div class="list">${list(up) || '<div class="empty">Add ways to earn points under Set up.</div>'}</div>
       ${head(`Take points away from ${who}`,'-1')}<div class="list">${list(down) || '<div class="empty">Add ways to lose points under Set up.</div>'}</div>`;
-  } else if(ui.ptab==='history') body = kidsOf(sel).map(k => `<h2>${KIDS[k].name}’s history</h2>${historyList(k,true)}`).join('');
-  else body = kidsOf(sel).map(weekView).join('');
-  return `${banner()}<div class="top"><span class="soft">Signed in as ${PARENTS[role()].name}</span><button class="btn ghost small" data-act="setup" data-id="1">⚙️ Set up</button></div><div class="pair">${Object.keys(KIDS).map(k => ticket(k,{button:true})).join('')}</div>
-    <button class="bothbtn" data-act="kid" data-id="both" aria-pressed="${both}">Both kids</button>
-    ${sorted(main.petitions).sort((a,b)=>a.ts-b.ts).map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${KIDS[q.kid].name} asks for ${signed(q.pts)}: ${esc(q.label)}</div><div>Asked ${when(q.ts).toLowerCase()}. Points count only if you approve.</div>
+  } else if(ui.ptab==='history') body = `<h2>${who}’s history</h2>${historyList(sel,true)}`;
+  else body = weekView(sel);
+  const back = `<div class="top"><button class="btn ghost small" data-act="kid" data-id="">‹ Kids</button><span class="soft">Signed in as ${PARENTS[role()].name}</span></div>`;
+  if(both) return `${banner()}${back}<div class="bothhead"><h1>Both kids</h1><p class="soft">Points you give or take away here go to Emmie and Dawson.</p></div>${body}`;
+  return `${banner()}${back}${ticket(sel)}
+    ${petitionsFor(sel).map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${who} asks for ${signed(q.pts)}: ${esc(q.label)}</div><div>Asked ${when(q.ts).toLowerCase()}. Points count only if you approve.</div>
       <div class="acts"><button class="btn ghost" data-act="pdecline" data-id="${q.id}">Decline</button><button class="btn" data-act="papprove" data-id="${q.id}">Approve</button></div></div>`).join('')}
-    ${asks.map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${KIDS[q.kid].name} wants: ${esc(q.label)}</div><div>${q.cost} points, asked ${when(q.ts).toLowerCase()}. ${KIDS[q.kid].name} has ${bal(q.kid)}.</div>
+    ${pendingFor(sel).map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${who} wants: ${esc(q.label)}</div><div>${q.cost} points, asked ${when(q.ts).toLowerCase()}. ${who} has ${bal(sel)}.</div>
       <div class="acts"><button class="btn ghost" data-act="decline" data-id="${q.id}">Decline</button><button class="btn" data-act="approve" data-id="${q.id}">Approve</button></div></div>`).join('')}
     ${tabs('ptab', [['give','Points'],['history','History'],['week','This week']])}<div>${body}</div>`;
 }
@@ -661,7 +673,7 @@ document.addEventListener('click', e => {
   if(act==='update') checkUpdate();
   else if(act==='role'){ if(KIDS[id]){ ls.set('ep_role', id); render(); checkNews(id); } else becomeParent(id); }
   else if(act==='tab'){ ui[key] = id; render(); }
-  else if(act==='kid'){ ui.kid = id; render(); }
+  else if(act==='kid'){ ui.kid = id || null; if(!id) ui.ptab = 'give'; $('#toast').className = ''; render(); window.scrollTo(0,0); }
   else if(act==='setup'){ ui.setup = !!id && isParent(r); render(); window.scrollTo(0,0); }
   else if(act==='switch'){
     const out = () => { ls.set('ep_role', null); ui.setup = false; $('#toast').className = ''; render(); };
