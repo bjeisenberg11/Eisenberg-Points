@@ -11,7 +11,7 @@
 <link rel="icon" href="icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#EEEAFB; --ink:#231C4F; --soft:#6A6391; --card:#fff; --line:#DDD6F3;
@@ -156,6 +156,62 @@ button.row:active{background:#F6F3FE}
 .kidbtn .e{font-size:46px;line-height:1.1}
 .kidbtn .badge{margin-top:6px}
 .bothhead{margin-bottom:4px}
+
+/* ---------- parent theme: calmer, tighter, grown-up ---------- */
+body.adult{--bg:#F3F4F7;--ink:#1B2233;--soft:#69728A;--line:#E1E4EB;--plus:#167A50;--minus:#C2412A;
+  font-family:Figtree,ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.45}
+body.adult h1{font-size:24px;font-weight:650;letter-spacing:-.015em}
+body.adult h2{font-size:15px;font-weight:600;color:var(--soft);margin:26px 0 8px}
+body.adult .hrow{margin:26px 0 8px}
+body.adult .hrow h2{margin:0}
+body.adult .banner{border-radius:10px;box-shadow:0 0 0 1px var(--line)}
+body.adult .list{border-radius:12px;box-shadow:0 0 0 1px var(--line)}
+body.adult .row{padding:12px 14px;gap:12px;border-top:1px solid var(--line)}
+body.adult .row:first-child{border-top:0}
+body.adult button.row:active{background:#F6F7FA}
+body.adult .emo{font-size:19px;width:24px}
+body.adult .label{font-weight:500}
+body.adult .sub{font-size:13.5px}
+body.adult .pts{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+body.adult .btn{border-radius:10px;font-weight:600;min-height:42px}
+body.adult .btn.small{min-height:34px;font-size:14px;padding:6px 12px}
+body.adult .btn.ghost{background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
+body.adult .tabs{background:#E6E8EE;border-radius:10px;padding:3px;margin:20px 0 4px;gap:2px}
+body.adult .tabs button{border-radius:8px;padding:8px 4px;font-size:15px;color:var(--soft)}
+body.adult .tabs button[aria-selected=true]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(27,34,51,.14)}
+body.adult .ticket{-webkit-mask:none;mask:none;background:#fff;color:var(--ink);border-radius:14px;box-shadow:0 0 0 1px var(--line),inset 6px 0 0 var(--kid)}
+body.adult .ticket .stub{display:none}
+body.adult .ticket .main{padding:16px 18px 16px 24px}
+body.adult .ticket .who{font-size:14px;font-weight:500;color:var(--soft)}
+body.adult .ticket .num{font-size:46px;font-weight:650;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+body.adult .ticket .unit{font-size:15px;color:var(--soft);font-weight:500}
+body.adult .badge{background:#FFF1C7;color:#7A5600;font-weight:600}
+body.adult .ask{background:#fff;border-radius:12px;box-shadow:0 0 0 1px var(--line),inset 4px 0 0 var(--gold);padding:14px 14px 14px 18px}
+body.adult .ask .label{font-weight:600}
+body.adult .ask > div:nth-child(2){color:var(--soft);font-size:15px}
+body.adult .kidpick{grid-template-columns:1fr;gap:0;margin-top:14px;background:#fff;border-radius:14px;box-shadow:0 0 0 1px var(--line);overflow:hidden}
+body.adult .kidbtn,body.adult .bothbtn{background:#fff;color:var(--ink);border-radius:0;flex-direction:row;justify-content:flex-start;align-items:center;gap:12px;padding:18px 16px;font-size:18px;font-weight:600;margin:0}
+body.adult .kidbtn + .kidbtn{border-top:1px solid var(--line)}
+body.adult .kidbtn::before{content:'';width:12px;height:12px;border-radius:50%;background:var(--kid);flex:none}
+body.adult .kidbtn .e{display:none}
+body.adult .kidbtn .badge{margin:0 0 0 auto}
+body.adult .kidbtn::after,body.adult .bothbtn::after{content:'›';color:var(--soft);font-size:24px;font-weight:400;line-height:1}
+body.adult .kidbtn .badge + *{display:none}
+body.adult .kidbtn:not(:has(.badge))::after{margin-left:auto}
+body.adult .bothbtn{display:flex;width:100%;margin-top:12px;border-radius:14px;box-shadow:0 0 0 1px var(--line);font-size:16px;font-weight:500}
+body.adult .bothbtn::after{margin-left:auto}
+body.adult .stats div{border-radius:12px;box-shadow:0 0 0 1px var(--line)}
+body.adult .stats b{font-size:24px;font-weight:650;font-variant-numeric:tabular-nums}
+body.adult #sheet{background:rgba(27,34,51,.45)}
+body.adult #sheet form{border-radius:16px 16px 0 0}
+body.adult #sheet h3{font-size:20px;font-weight:650}
+body.adult .field input{border-radius:10px;border-width:1.5px;font-size:17px}
+body.adult .seg{border-radius:10px;padding:3px;background:#E6E8EE}
+body.adult .seg span{border-radius:8px;padding:8px}
+body.adult .xbtn{background:#EEF0F4}
+body.adult #toast{border-radius:12px}
+body.adult #toast button{border-radius:8px}
+body.adult .top{margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -180,7 +236,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.5';   // bump on every change so Check for update can see it
+const VERSION = '1.6';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -647,6 +703,9 @@ function render(){
   if(KIDS[r]) html = kidView(r);
   else if(isParent(r) && parentOK()) html = parentView();
   else html = pickerView();
+  const adult = isParent(r) && parentOK();
+  document.body.classList.toggle('adult', adult);
+  document.querySelector('meta[name=theme-color]').content = adult ? '#F3F4F7' : '#EEEAFB';
   $('#app').innerHTML = html + `<div class="foot ver"><span class="soft">Version ${VERSION}</span><button class="link" data-act="update">Check for update</button></div>`;
   for(const k in KIDS) lastBal[k] = bal(k);
   const waiting = isParent(r) && main ? Object.keys(main.requests||{}).length + Object.keys(main.petitions||{}).length : 0;
