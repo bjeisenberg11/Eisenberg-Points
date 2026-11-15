@@ -231,6 +231,36 @@ body.adult .top{margin-bottom:14px}
 body.adult .whopick .btn{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line);font-size:17px;font-weight:500;gap:8px;min-height:52px}
 body.adult .whopick .btn .dot{width:8px;height:8px;border-radius:50%;background:var(--kid)}
 body.adult .whopick .both{background:var(--ink);color:#fff;box-shadow:none}
+
+/* parent: smaller type, square corners */
+body.adult{font-size:15px}
+body.adult h1{font-size:22px}
+body.adult h2{font-size:12.5px}
+body.adult .label{font-size:15px}
+body.adult .pts{font-size:15px}
+body.adult .soft,body.adult .hint{font-size:13.5px}
+body.adult .kidbtn{font-size:15px;padding:12px 14px}
+body.adult .tile{min-height:50px;padding:9px 11px}
+body.adult .tile .label,body.adult .tile .pts{font-size:13.5px}
+body.adult .tile .label{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+body.adult .tile .sub{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.adult .ask .label{font-size:15px}
+body.adult .ask > div:nth-child(2){font-size:13.5px}
+body.adult .btn{font-size:14.5px;min-height:38px}
+body.adult .btn.small{font-size:13.5px;min-height:32px}
+body.adult .tabs button,body.adult .modeseg button{font-size:13.5px;padding:7px 4px}
+body.adult .ticket .num{font-size:36px}
+body.adult .ticket .who,body.adult .ticket .unit{font-size:13.5px}
+body.adult .stats b{font-size:21px}
+body.adult .stats span{font-size:12.5px}
+body.adult .foot.ver{font-size:13px}
+body.adult .btn,body.adult .tabs,body.adult .tabs button,body.adult .modeseg,body.adult .modeseg button,
+body.adult .seg,body.adult .seg span,body.adult .badge,body.adult .kidbtn .cnt,body.adult #toast,body.adult #toast button,
+body.adult .xbtn,body.adult .kidpick,body.adult .tiles,body.adult .ticket,body.adult .ask,body.adult .list,
+body.adult .stats div,body.adult .banner,body.adult .field input,body.adult .whopick .btn{border-radius:3px}
+body.adult #sheet form{border-radius:6px 6px 0 0}
+body.adult .tabs,body.adult .modeseg,body.adult .seg{padding:2px}
+body.adult .xbtn{width:34px;height:34px;font-size:22px}
 </style>
 </head>
 <body>
@@ -255,7 +285,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.9';   // bump on every change so Check for update can see it
+const VERSION = '1.10';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
