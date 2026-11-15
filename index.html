@@ -11,7 +11,7 @@
 <link rel="icon" href="icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#EEEAFB; --ink:#231C4F; --soft:#6A6391; --card:#fff; --line:#DDD6F3;
@@ -159,9 +159,9 @@ button.row:active{background:#F6F3FE}
 
 /* ---------- parent theme: calmer, tighter, grown-up ---------- */
 body.adult{--bg:#F3F4F7;--ink:#1B2233;--soft:#69728A;--line:#E1E4EB;--plus:#167A50;--minus:#C2412A;
-  font-family:Figtree,ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.45}
-body.adult h1{font-size:24px;font-weight:650;letter-spacing:-.015em}
-body.adult h2{font-size:15px;font-weight:600;color:var(--soft);margin:26px 0 8px}
+  font-family:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.45;font-variant-numeric:tabular-nums}
+body.adult h1{font-size:26px;font-weight:600;letter-spacing:-.01em;margin-top:2px}
+body.adult h2{font-size:13.5px;font-weight:600;color:var(--soft);margin:24px 0 8px}
 body.adult .hrow{margin:26px 0 8px}
 body.adult .hrow h2{margin:0}
 body.adult .banner{border-radius:10px;box-shadow:0 0 0 1px var(--line)}
@@ -169,7 +169,7 @@ body.adult .list{border-radius:12px;box-shadow:0 0 0 1px var(--line)}
 body.adult .row{padding:12px 14px;gap:12px;border-top:1px solid var(--line)}
 body.adult .row:first-child{border-top:0}
 body.adult button.row:active{background:#F6F7FA}
-body.adult .emo{font-size:19px;width:24px}
+body.adult .emo{display:none}
 body.adult .label{font-weight:500}
 body.adult .sub{font-size:13.5px}
 body.adult .pts{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
@@ -179,22 +179,27 @@ body.adult .btn.ghost{background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
 body.adult .tabs{background:#E6E8EE;border-radius:10px;padding:3px;margin:20px 0 4px;gap:2px}
 body.adult .tabs button{border-radius:8px;padding:8px 4px;font-size:15px;color:var(--soft)}
 body.adult .tabs button[aria-selected=true]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(27,34,51,.14)}
-body.adult .ticket{-webkit-mask:none;mask:none;background:#fff;color:var(--ink);border-radius:14px;box-shadow:0 0 0 1px var(--line),inset 6px 0 0 var(--kid)}
+body.adult .ticket{-webkit-mask:none;mask:none;background:#fff;color:var(--ink);border-radius:14px;box-shadow:0 0 0 1px var(--line),inset 3px 0 0 var(--kid)}
 body.adult .ticket .stub{display:none}
 body.adult .ticket .main{padding:16px 18px 16px 24px}
 body.adult .ticket .who{font-size:14px;font-weight:500;color:var(--soft)}
-body.adult .ticket .num{font-size:46px;font-weight:650;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+body.adult .ticket .num{font-size:42px;font-weight:600;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
 body.adult .ticket .unit{font-size:15px;color:var(--soft);font-weight:500}
 body.adult .badge{background:#FFF1C7;color:#7A5600;font-weight:600}
-body.adult .ask{background:#fff;border-radius:12px;box-shadow:0 0 0 1px var(--line),inset 4px 0 0 var(--gold);padding:14px 14px 14px 18px}
+body.adult .ask{background:#fff;border-radius:10px;box-shadow:0 0 0 1px var(--line),inset 3px 0 0 #D9A400;padding:14px 14px 14px 18px}
 body.adult .ask .label{font-weight:600}
 body.adult .ask > div:nth-child(2){color:var(--soft);font-size:15px}
-body.adult h2.first{margin-top:6px}
-body.adult .kidpick{grid-template-columns:repeat(3,1fr);gap:8px;margin-top:0}
-body.adult .kidbtn{background:#fff;color:var(--ink);border-radius:12px;box-shadow:0 0 0 1px var(--line),inset 0 4px 0 var(--kid);padding:14px 6px 10px;justify-content:center;font-size:17px;font-weight:600;gap:3px}
-body.adult .kidbtn .e{font-size:26px}
-body.adult .kidbtn .badge{margin-top:4px;font-size:12px;padding:1px 7px}
-body.adult .k-both{--kid:var(--ink)}
+body.adult h2.first{margin-top:18px}
+body.adult .kidpick{grid-template-columns:1fr;gap:0;margin-top:0;background:#fff;border-radius:10px;box-shadow:0 0 0 1px var(--line);overflow:hidden}
+body.adult .kidbtn{background:#fff;color:var(--ink);border-radius:0;flex-direction:row;align-items:center;justify-content:flex-start;gap:10px;padding:13px 14px;font-size:16px;font-weight:500;box-shadow:none}
+body.adult .kidbtn + .kidbtn{border-top:1px solid var(--line)}
+body.adult .kidbtn .dot{width:8px;height:8px;border-radius:50%;background:var(--kid);flex:none}
+body.adult .kidbtn .cnt{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--ink);color:#fff;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+body.adult .kidbtn .chev{color:var(--soft);font-size:20px;line-height:1}
+body.adult .kidbtn .cnt + .chev{margin-left:0}
+body.adult .kidbtn .n + .chev{margin-left:auto}
+body.adult .k-both{--kid:#9AA1B2}
+body.adult .hint{font-size:14px;margin:-4px 0 0}
 body.adult .stats div{border-radius:12px;box-shadow:0 0 0 1px var(--line)}
 body.adult .stats b{font-size:24px;font-weight:650;font-variant-numeric:tabular-nums}
 body.adult #sheet{background:rgba(27,34,51,.45)}
@@ -211,22 +216,21 @@ body.adult .top{margin-bottom:14px}
 .whopick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
 .whopick .btn{min-height:56px;font-size:18px;background:var(--kid);color:#fff}
 .whopick .both{grid-column:1/-1;background:var(--ink)}
-.modeseg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#E6E8EE;border-radius:10px;padding:3px;margin:14px 0 10px}
-.modeseg button{padding:9px 4px;border-radius:8px;font-weight:600;color:var(--soft);font-size:15px}
-.modeseg .give[aria-selected=true]{background:var(--plus);color:#fff}
-.modeseg .take[aria-selected=true]{background:var(--minus);color:#fff}
-.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.modeseg{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#E6E8EE;border-radius:8px;padding:2px;margin:12px 0 10px}
+.modeseg button{padding:7px 4px;border-radius:6px;font-weight:500;color:var(--soft);font-size:14.5px}
+.modeseg button[aria-selected=true]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(27,34,51,.14)}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border-radius:10px;overflow:hidden;box-shadow:0 0 0 1px var(--line)}
 @media (min-width:560px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.tile{background:#fff;border-radius:12px;box-shadow:0 0 0 1px var(--line);padding:11px 12px;overflow-wrap:anywhere;text-align:left;display:flex;flex-direction:column;gap:6px;min-height:92px}
+.tile{background:#fff;padding:11px 12px;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:56px;overflow-wrap:anywhere}
 .tile:active{background:#F6F7FA}
-.tile .t-top{display:flex;align-items:center;justify-content:space-between}
-.tile .emo{font-size:22px;width:auto;text-align:left}
-.tile .pts{font-size:17px}
-.tile .label{font-weight:500;line-height:1.25}
-.tile .sub{font-size:12.5px;color:var(--soft);line-height:1.25}
-.tile.custom{box-shadow:inset 0 0 0 1.5px var(--line);background:transparent;border:0}
-.tile.custom .label{color:var(--soft)}
-.kidbtn [hidden]{display:none}
+.tile .t-main{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.tile .label{font-weight:500;font-size:14.5px;line-height:1.3}
+.tile .pts{font-size:14.5px;font-weight:600;flex:none}
+.tile .sub{font-size:12px;color:var(--soft);line-height:1.25}
+.tile.custom .label,.tile.custom .pts{color:var(--soft)}
+body.adult .whopick .btn{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line);font-size:17px;font-weight:500;gap:8px;min-height:52px}
+body.adult .whopick .btn .dot{width:8px;height:8px;border-radius:50%;background:var(--kid)}
+body.adult .whopick .both{background:var(--ink);color:#fff;box-shadow:none}
 </style>
 </head>
 <body>
@@ -251,7 +255,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.8';   // bump on every change so Check for update can see it
+const VERSION = '1.9';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -574,9 +578,9 @@ function itemSheet(kind, id){
 function pickSheet(bid){
   const b = main.behaviors && main.behaviors[bid]; if(!b) return;
   openSheet(`
-    <h3>${esc(b.emoji)} ${esc(b.label)}</h3>
-    <p class="soft">${b.pts>0 ? `Give ${signed(b.pts)}` : `Take away ${Math.abs(b.pts)}`} ${Math.abs(b.pts)===1?'point':'points'}. Who is it for?</p>
-    <div class="whopick">${Object.keys(KIDS).map(k => `<button class="btn k-${k}" name="who" value="${k}">${KIDS[k].name}</button>`).join('')}
+    <h3>${esc(b.label)}</h3>
+    <p class="soft">${b.pts>0 ? `Award ${signed(b.pts)}` : `Deduct ${Math.abs(b.pts)}`} ${Math.abs(b.pts)===1?'point':'points'}. Who receives it?</p>
+    <div class="whopick">${Object.keys(KIDS).map(k => `<button class="btn k-${k}" name="who" value="${k}"><span class="dot"></span>${KIDS[k].name}</button>`).join('')}
       <button class="btn both" name="who" value="both">Both kids</button></div>`,
     (f, btn) => { if(!btn || !btn.value) return false; give(btn.value, b.pts, b.label, b.emoji, {id:bid, ...b}); });
 }
@@ -688,12 +692,12 @@ function activities(sel){
   const bs = byPts(sorted(main.behaviors)), up = ui.mode!=='down', one = sel && sel!=='both';
   const arr = bs.filter(b => up ? b.pts>0 : b.pts<0);
   const tile = b => { const sub = one ? streakNote(sel,b) : '';
-    return `<button class="tile" data-act="${sel?'give':'pick'}" data-id="${b.id}"><span class="t-top"><span class="emo">${esc(b.emoji)}</span><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></span><span class="label">${esc(b.label)}</span>${sub?`<span class="sub">${esc(sub)}</span>`:''}</button>`; };
+    return `<button class="tile" data-act="${sel?'give':'pick'}" data-id="${b.id}"><span class="t-main"><span class="label">${esc(b.label)}</span><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></span>${sub?`<span class="sub">${esc(sub)}</span>`:''}</button>`; };
   return `<div class="modeseg" role="tablist">
-      <button role="tab" class="give" aria-selected="${up}" data-act="tab" data-key="mode" data-id="up">Give points</button>
-      <button role="tab" class="take" aria-selected="${!up}" data-act="tab" data-key="mode" data-id="down">Take away</button></div>
+      <button role="tab" class="give" aria-selected="${up}" data-act="tab" data-key="mode" data-id="up">Award</button>
+      <button role="tab" class="take" aria-selected="${!up}" data-act="tab" data-key="mode" data-id="down">Deduct</button></div>
     <div class="tiles">${arr.map(tile).join('')}
-      <button class="tile custom" data-act="custom" data-id="${up?'1':'-1'}"><span class="t-top"><span class="emo">✏️</span></span><span class="label">Custom amount</span></button></div>
+      <button class="tile custom" data-act="custom" data-id="${up?'1':'-1'}"><span class="t-main"><span class="label">Custom amount</span><span class="pts">…</span></span></button></div>
     ${arr.length ? '' : `<p class="soft">No ways to ${up?'earn':'lose'} points yet. Add them under Set up.</p>`}`;
 }
 
@@ -709,12 +713,12 @@ function parentView(){
         <button class="row" data-act="newpin"><span class="emo">🔑</span><span class="grow label">Change the parent PIN</span></button>
         <button class="row" data-act="switch"><span class="emo">🔁</span><span class="grow"><span class="label">Use this device as someone else</span><div class="sub">Signed in as ${PARENTS[role()].name}</div></span></button></div>`;
   }
-  const top = `${banner()}<div class="top"><span class="soft">Signed in as ${PARENTS[role()].name}</span><button class="btn ghost small" data-act="setup" data-id="1">⚙️ Set up</button></div>`;
+  const top = `${banner()}<div class="top"><span class="soft">Signed in as ${PARENTS[role()].name}</span><button class="btn ghost small" data-act="setup" data-id="1">Set up</button></div>`;
   if(!ui.kid){   // home: pick a kid; no balances on this screen
-    const btn = k => { const n = waitingFor(k); return `<button class="kidbtn k-${k}" data-act="kid" data-id="${k}"><span class="e" aria-hidden="true">${KIDS[k].emoji}</span><span class="n">${KIDS[k].name}</span><span class="badge"${n?'':' hidden'}>${n} waiting</span></button>`; };
-    return `${top}<h2 class="first">Open a kid</h2><div class="kidpick">${Object.keys(KIDS).map(btn).join('')}
-        <button class="kidbtn k-both" data-act="kid" data-id="both"><span class="e" aria-hidden="true">👫</span><span class="n">Both</span></button></div>
-      <h2>Or tap what they did</h2>${activities(null)}`;
+    const btn = k => { const n = waitingFor(k); return `<button class="kidbtn k-${k}" data-act="kid" data-id="${k}"><span class="dot"></span><span class="n">${KIDS[k].name}</span>${n?`<span class="cnt" aria-label="${n} waiting">${n}</span>`:''}<span class="chev">›</span></button>`; };
+    return `${top}<h1>Points</h1><h2 class="first">Accounts</h2><div class="kidpick">${Object.keys(KIDS).map(btn).join('')}
+        <button class="kidbtn k-both" data-act="kid" data-id="both"><span class="dot"></span><span class="n">Both kids</span><span class="chev">›</span></button></div>
+      <h2>Quick award</h2><p class="soft hint">Pick an item, then choose who receives it.</p>${activities(null)}`;
   }
   const sel = ui.kid, both = sel==='both', who = both ? 'both kids' : KIDS[sel].name;
   if(both) ui.ptab = 'give';
@@ -722,12 +726,12 @@ function parentView(){
   if(ui.ptab==='give') body = activities(sel);
   else if(ui.ptab==='history') body = `<h2>${who}’s history</h2>${historyList(sel,true)}`;
   else body = weekView(sel);
-  const back = `<div class="top"><button class="btn ghost small" data-act="kid" data-id="">‹ Kids</button><span class="soft">Signed in as ${PARENTS[role()].name}</span></div>`;
+  const back = `<div class="top"><button class="btn ghost small" data-act="kid" data-id="">‹ All kids</button><span class="soft">Signed in as ${PARENTS[role()].name}</span></div>`;
   if(both) return `${banner()}${back}<div class="bothhead"><h1>Both kids</h1><p class="soft">Points you give or take away here go to Emmie and Dawson.</p></div>${body}`;
   return `${banner()}${back}${ticket(sel)}
-    ${petitionsFor(sel).map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${who} asks for ${signed(q.pts)}: ${esc(q.label)}</div><div>Asked ${when(q.ts).toLowerCase()}. Points count only if you approve.</div>
+    ${petitionsFor(sel).map(q => `<div class="ask"><div class="label">${who} asks for ${signed(q.pts)}: ${esc(q.label)}</div><div>Asked ${when(q.ts).toLowerCase()}. Points count only if you approve.</div>
       <div class="acts"><button class="btn ghost" data-act="pdecline" data-id="${q.id}">Decline</button><button class="btn" data-act="papprove" data-id="${q.id}">Approve</button></div></div>`).join('')}
-    ${pendingFor(sel).map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${who} wants: ${esc(q.label)}</div><div>${q.cost} points, asked ${when(q.ts).toLowerCase()}. ${who} has ${bal(sel)}.</div>
+    ${pendingFor(sel).map(q => `<div class="ask"><div class="label">${who} wants: ${esc(q.label)}</div><div>${q.cost} points, asked ${when(q.ts).toLowerCase()}. ${who} has ${bal(sel)}.</div>
       <div class="acts"><button class="btn ghost" data-act="decline" data-id="${q.id}">Decline</button><button class="btn" data-act="approve" data-id="${q.id}">Approve</button></div></div>`).join('')}
     ${tabs('ptab', [['give','Points'],['history','History'],['week','This week']])}<div>${body}</div>`;
 }
