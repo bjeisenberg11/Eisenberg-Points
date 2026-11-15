@@ -54,7 +54,7 @@ p{margin:0 0 12px}
 @media (prefers-reduced-motion:reduce){.bump{animation:none}.pair .ticket{transition:none}}
 
 .tabs{display:flex;gap:6px;margin:20px 0 4px;background:#fff;border-radius:999px;padding:5px}
-.tabs button{flex:1;padding:10px 6px;border-radius:999px;font-weight:500;color:var(--soft)}
+.tabs button{flex:1;padding:10px 4px;white-space:nowrap;border-radius:999px;font-weight:500;color:var(--soft)}
 .tabs button[aria-selected=true]{background:var(--ink);color:#fff}
 
 .list{background:var(--card);border-radius:18px;overflow:hidden}
@@ -147,6 +147,9 @@ button.row:active{background:#F6F3FE}
 #sheet h3{padding-right:44px}
 .xbtn{position:absolute;top:12px;right:12px;width:40px;height:40px;border-radius:50%;background:var(--bg);color:var(--ink);font-size:26px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:2}
 .xbtn:active{background:var(--line)}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:26px 0 10px}
+.hrow h2{margin:0;min-width:0}
+.hrow .btn{flex:none}
 </style>
 </head>
 <body>
@@ -171,7 +174,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.2';   // bump on every change so Check for update can see it
+const VERSION = '1.3';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -460,10 +463,11 @@ function itemSheet(kind, id){
       run(store.apply({set:{[kind+'.'+(id||uid())]:v}}));
     });
 }
-function customSheet(kid){
+function customSheet(kid, dir){
+  const take = dir==='-1';
   openSheet(`
-    <h3>Other amount for ${whoName(kid)}</h3>
-    <div class="seg"><label><input type="radio" name="dir" value="1" checked><span>Give points</span></label><label><input type="radio" name="dir" value="-1"><span>Take points away</span></label></div>
+    <h3>Custom amount for ${whoName(kid)}</h3>
+    <div class="seg"><label><input type="radio" name="dir" value="1" ${take?'':'checked'}><span>Give points</span></label><label><input type="radio" name="dir" value="-1" ${take?'checked':''}><span>Take points away</span></label></div>
     <label class="field"><span>How many</span><input name="n" type="number" inputmode="numeric" min="1" max="999" autofocus></label>
     <label class="field"><span>What for</span><input name="label" maxlength="60" placeholder="Helped Grandpa carry groceries"></label>
     <div class="msg"></div>
@@ -575,9 +579,9 @@ function parentView(){
     const bs = byPts(sorted(main.behaviors)), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
     const list = arr => arr.map(b => { const sub = both ? '' : streakNote(sel,b);
       return `<button class="row" data-act="give" data-id="${b.id}"><span class="emo">${esc(b.emoji)}</span><span class="grow"><span class="label">${esc(b.label)}</span>${sub?`<div class="sub">${esc(sub)}</div>`:''}</span><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></button>`; }).join('');
-    body = `<h2>Give ${who} points</h2><div class="list">${list(up) || '<div class="empty">Add ways to earn points under Set up.</div>'}</div>
-      <h2>Take points away from ${who}</h2><div class="list">${list(down) || '<div class="empty">Add ways to lose points under Set up.</div>'}</div>
-      <div style="margin-top:16px"><button class="btn ghost wide" data-act="custom">Other amount</button></div>`;
+    const head = (text, dir) => `<div class="hrow"><h2>${text}</h2><button class="btn ghost small" data-act="custom" data-id="${dir}">+ Custom amount</button></div>`;
+    body = `${head(`Give ${who} points`,'1')}<div class="list">${list(up) || '<div class="empty">Add ways to earn points under Set up.</div>'}</div>
+      ${head(`Take points away from ${who}`,'-1')}<div class="list">${list(down) || '<div class="empty">Add ways to lose points under Set up.</div>'}</div>`;
   } else if(ui.ptab==='history') body = kidsOf(sel).map(k => `<h2>${KIDS[k].name}’s history</h2>${historyList(k,true)}`).join('');
   else body = kidsOf(sel).map(weekView).join('');
   return `${banner()}<div class="top"><span class="soft">Signed in as ${PARENTS[role()].name}</span><button class="btn ghost small" data-act="setup" data-id="1">⚙️ Set up</button></div><div class="pair">${Object.keys(KIDS).map(k => ticket(k,{button:true})).join('')}</div>
@@ -632,7 +636,7 @@ document.addEventListener('click', e => {
   }
   else if(isParent(r) && parentOK()){
     if(act==='give'){ const x = main.behaviors[id]; if(x) give(ui.kid, x.pts, x.label, x.emoji, {id, ...x}); }
-    else if(act==='custom') customSheet(ui.kid);
+    else if(act==='custom') customSheet(ui.kid, id);
     else if(act==='remove'){ removeEntry(b.dataset.kid, id, +b.dataset.pts); toast('Removed'); }
     else if(act==='approve') answer(id, true);
     else if(act==='decline') answer(id, false);
