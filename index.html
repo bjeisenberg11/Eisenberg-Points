@@ -119,7 +119,7 @@ button.row:active{background:#F6F3FE}
 #toast button{background:var(--gold);color:var(--ink);border-radius:999px;padding:6px 14px;font-weight:600;flex:none}
 #toast.plain{padding-right:20px}
 .ticket{position:relative}
-.badge{position:absolute;top:9px;right:18px;background:var(--gold);color:var(--ink);border-radius:99px;padding:1px 9px;font-size:13px;font-weight:600}
+.badge{display:inline-block;margin-top:6px;background:var(--gold);color:var(--ink);border-radius:99px;padding:1px 9px;font-size:13px;font-weight:600}
 .tbar{height:8px;border-radius:99px;background:rgba(255,255,255,.3);margin-top:8px;overflow:hidden}
 .tbar i{display:block;height:100%;background:#fff;border-radius:99px}
 .bothbtn{width:100%;margin-top:10px;padding:10px;border-radius:999px;background:#fff;color:var(--soft);font-weight:500}
@@ -150,6 +150,7 @@ button.row:active{background:#F6F3FE}
 .hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:26px 0 10px}
 .hrow h2{margin:0;min-width:0}
 .hrow .btn{flex:none}
+.asked{flex:none;font-weight:500}
 </style>
 </head>
 <body>
@@ -174,7 +175,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.3';   // bump on every change so Check for update can see it
+const VERSION = '1.4';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -260,6 +261,8 @@ const bal = kid => (main && main.balances && main.balances[kid]) || 0;
 const sorted = obj => Object.entries(obj||{}).map(([id,v]) => ({id,...v})).sort((a,b)=>(a.ord||0)-(b.ord||0));
 const byPts = arr => arr.sort((a,b) => Math.abs(a.pts)-Math.abs(b.pts) || (a.ord||0)-(b.ord||0));
 const pendingFor = kid => sorted(main && main.requests).filter(q => q.kid===kid).sort((a,b)=>a.ts-b.ts);
+const petitionsFor = kid => sorted(main && main.petitions).filter(q => q.kid===kid).sort((a,b)=>a.ts-b.ts);
+const waitingFor = kid => pendingFor(kid).length + petitionsFor(kid).length;
 const available = kid => bal(kid) - pendingFor(kid).reduce((s,q)=>s+q.cost,0);
 const kidsOf = sel => sel==='both' ? Object.keys(KIDS) : [sel];
 const whoName = sel => kidsOf(sel).map(k => KIDS[k].name).join(' and ');
@@ -307,12 +310,13 @@ function when(ts){
 /* ---------- actions ---------- */
 function run(p){ Promise.resolve(p).catch(e => toast('That didn’t save. Check the connection and try again.')); }
 
-function give(sel, pts, label, emoji, b){
+function give(sel, pts, label, emoji, b, asked){
   const set = {}, back = {}, added = [], now = Date.now(); let bonusNote = '';
   for(const kid of kidsOf(sel)){
     let total = pts;
     const entry = {pts,label,emoji:emoji||'⭐',by:role(),ts:now,type:'points'};
     if(b) entry.bid = b.id;
+    if(asked) entry.asked = true;
     added.push({kid,id:uid(),entry});
     if(b && b.pts>0 && b.streakDays>1 && b.streakBonus>0 && !doneToday(kid,b.id)){
       const n = streak(kid,b.id) + 1;
@@ -331,6 +335,33 @@ function requestPrize(kid, rid){
   const r = main.rewards[rid]; if(!r || available(kid) < r.cost) return;
   run(store.apply({ set:{['requests.'+uid()]:{kid,label:r.label,emoji:r.emoji,cost:r.cost,ts:Date.now()}} }));
   toast('Asked for it. Mom or Dad will get back to you.');
+}
+function askPoints(kid, v){
+  const id = uid();
+  run(store.apply({ set:{['petitions.'+id]:{kid, ts:Date.now(), ...v}} }));
+  toast('Sent. Mom or Dad will check it.', () => run(store.apply({set:{['petitions.'+id]:DEL}})));
+}
+function cancelPetition(id){ run(store.apply({ set:{['petitions.'+id]:DEL} })); }
+function answerPetition(id, yes){
+  const q = main.petitions && main.petitions[id]; if(!q) return;
+  run(store.apply({ set:{['petitions.'+id]:DEL} }));
+  if(yes){ const b = q.bid && main.behaviors && main.behaviors[q.bid]; give(q.kid, q.pts, q.label, q.emoji, b ? {id:q.bid, ...b} : null, true); }
+  else { run(store.apply({ addLog:{kid:q.kid,id:uid(),entry:{pts:0,label:q.label,emoji:q.emoji,by:role(),ts:Date.now(),type:'pdeclined'}} })); toast(`Said no to ${KIDS[q.kid].name}: ${q.label}`); }
+}
+function petitionSheet(kid){
+  openSheet(`
+    <h3>Ask for points</h3>
+    <p class="soft">Tell Mom or Dad what you did. The points count once one of them says yes.</p>
+    <label class="field"><span>What did you do?</span><input name="label" maxlength="60" placeholder="Helped carry the groceries" autofocus></label>
+    <label class="field"><span>How many points?</span><input name="n" type="number" inputmode="numeric" min="1" max="20" value="1"></label>
+    <div class="msg"></div>
+    <div class="acts2"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn gold">Send to Mom and Dad</button></div>`,
+    f => {
+      const label = f.label.value.trim(), num = Math.round(+f.n.value), msg = f.querySelector('.msg');
+      if(!label){ msg.textContent = 'Write what you did.'; return false; }
+      if(!(num>=1 && num<=20)){ msg.textContent = 'Pick a number from 1 to 20.'; return false; }
+      askPoints(kid, {label, emoji:'✋', pts:num});
+    });
 }
 function cancelRequest(id){ run(store.apply({ set:{['requests.'+id]:DEL} })); }
 function answer(id, yes){
@@ -368,8 +399,9 @@ function checkNews(kid){
   showNews(kid);
 }
 function showNews(kid){
-  const onlyPrize = news.every(e => e.type==='prize'), onlyNo = news.every(e => e.type==='declined');
-  const net = news.filter(e => e.type!=='prize').reduce((t,e) => t+e.pts, 0), happy = onlyPrize || (!onlyNo && net>0);
+  const isNo = e => e.type==='declined' || e.type==='pdeclined';
+  const onlyPrize = news.every(e => e.type==='prize'), onlyNo = news.every(isNo);
+  const net = news.filter(e => e.type!=='prize' && !isNo(e)).reduce((t,e) => t+e.pts, 0), happy = onlyPrize || (!onlyNo && net>0);
   const title = onlyPrize ? 'Prize approved!' : onlyNo ? 'Not this time' : net>0 ? 'You got points!' : net<0 ? 'You lost points' : 'Points update';
   const big = onlyPrize ? '🎉' : onlyNo ? '' : signed(net);
   const colors = ['#FFC93C','#D93A77','#1677C9','#1A8F5C','#fff'];
@@ -379,8 +411,8 @@ function showNews(kid){
     ${big ? `<div class="big ${onlyPrize?'':cls(net)}">${big}</div>` : ''}<h3>${esc(title)}</h3>
     <div class="list">${news.slice(0,4).map(e => {
       const by = PARENTS[e.by] ? PARENTS[e.by].name : '';
-      const sub = e.type==='prize' ? 'Approved'+(by?' by '+by:'') : e.type==='declined' ? (by||'Mom or Dad')+' said no to this one' : e.type==='bonus' ? 'Streak bonus' : by ? 'From '+by : '';
-      return `<div class="row"><span class="emo">${esc(e.emoji)}</span><div class="grow"><div class="label">${esc(e.label)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div><span class="pts ${cls(e.pts)}">${e.type==='declined'?'':signed(e.pts)}</span></div>`;
+      const sub = e.type==='prize' ? 'Approved'+(by?' by '+by:'') : isNo(e) ? (by||'Mom or Dad')+' said no to this one' : e.type==='bonus' ? 'Streak bonus' : e.asked ? 'You asked, '+(by||'Mom or Dad')+' said yes' : by ? 'From '+by : '';
+      return `<div class="row"><span class="emo">${esc(e.emoji)}</span><div class="grow"><div class="label">${esc(e.label)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div><span class="pts ${cls(e.pts)}">${isNo(e)?'':signed(e.pts)}</span></div>`;
     }).join('')}${news.length>4?`<div class="row"><span class="emo"></span><div class="grow sub">and ${news.length-4} more in your history</div></div>`:''}</div>
     <p>You have ${bal(kid)} ${Math.abs(bal(kid))===1?'point':'points'} now.</p>
     <button class="btn ${happy?'gold':''} wide" type="button">${happy?'Nice!':'OK'}</button></div>`;
@@ -481,11 +513,10 @@ function customSheet(kid, dir){
 
 /* ---------- views ---------- */
 function ticket(kid, opts={}){
-  const b = bal(kid), bump = lastBal[kid]!==undefined && lastBal[kid]!==b, asks = opts.button ? pendingFor(kid).length : 0;
+  const b = bal(kid), bump = lastBal[kid]!==undefined && lastBal[kid]!==b, asks = opts.button ? waitingFor(kid) : 0;
   const inner = `<div class="main"><div class="who">${esc(opts.title || KIDS[kid].name)}</div>
     <div><span class="num${bump?' bump':''}">${b}</span><span class="unit">${Math.abs(b)===1?'point':'points'}</span></div>
-    ${(opts.notes||[]).map(n => `<div class="note">${esc(n)}</div>`).join('')}${opts.pct!=null?`<div class="tbar"><i style="width:${opts.pct}%"></i></div>`:''}</div>
-    ${asks?`<span class="badge">${asks} ${asks===1?'request':'requests'}</span>`:''}<div class="stub" aria-hidden="true">${KIDS[kid].emoji}</div>`;
+    ${(opts.notes||[]).map(n => `<div class="note">${esc(n)}</div>`).join('')}${opts.pct!=null?`<div class="tbar"><i style="width:${opts.pct}%"></i></div>`:''}${asks?`<span class="badge">${asks} waiting</span>`:''}</div><div class="stub" aria-hidden="true">${KIDS[kid].emoji}</div>`;
   return opts.button
     ? `<button class="ticket k-${kid}" data-act="kid" data-id="${kid}" aria-pressed="${ui.kid===kid || ui.kid==='both'}">${inner}</button>`
     : `<div class="ticket k-${kid}">${inner}</div>`;
@@ -498,10 +529,10 @@ function historyList(kid, parent){
   if(!rows.length) return `<div class="list"><div class="empty">${parent ? 'Nothing yet. Points you give or take away show up here.' : 'Nothing yet. Your points will show up here.'}</div></div>`;
   return `<div class="list">${rows.map(e => {
     const by = PARENTS[e.by] ? PARENTS[e.by].name : '';
-    const what = e.type==='prize' ? 'Prize approved' : e.type==='declined' ? 'Prize request declined' : e.type==='bonus' ? 'Streak bonus' : '';
+    const what = e.type==='prize' ? 'Prize approved' : e.type==='declined' ? 'Prize request declined' : e.type==='pdeclined' ? 'Points request declined' : e.type==='bonus' ? 'Streak bonus' : e.asked ? 'Asked for' : '';
     const sub = [when(e.ts), what, by && (e.type==='points' ? 'from '+by : 'by '+by)].filter(Boolean).join(', ');
     return `<div class="row"><span class="emo">${esc(e.emoji)}</span><div class="grow"><div class="label">${esc(e.label)}</div><div class="sub">${esc(sub)}</div></div>
-      <span class="pts ${cls(e.pts)}">${e.type==='declined'?'':signed(e.pts)}</span>
+      <span class="pts ${cls(e.pts)}">${e.type==='declined'||e.type==='pdeclined'?'':signed(e.pts)}</span>
       ${parent ? `<button class="btn ghost small" data-act="remove" data-kid="${kid}" data-id="${e.id}" data-pts="${e.pts}">Remove</button>` : ''}</div>`;
   }).join('')}</div>`;
 }
@@ -523,9 +554,7 @@ function kidView(kid){
   let body = '';
   if(ui.ktab==='prizes'){
     const rewards = sorted(main && main.rewards).sort((a,b)=>a.cost-b.cost);
-    body = pend.map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${esc(q.label)}</div><div>Waiting for Mom or Dad to say yes.</div>
-        <div class="acts"><button class="btn ghost small" data-act="cancel" data-id="${q.id}">Never mind</button></div></div>`).join('');
-    body += `<h2>Prizes</h2>${rewards.length?'<p class="soft">Tap a star to pick the prize you’re saving for.</p>':''}<div class="list">${rewards.length ? rewards.map(r => {
+    body = `<h2>Prizes</h2>${rewards.length?'<p class="soft">Tap a star to pick the prize you’re saving for.</p>':''}<div class="list">${rewards.length ? rewards.map(r => {
       const can = avail >= r.cost, pct = Math.max(0, Math.min(100, Math.round(avail/r.cost*100))), mine = goalId===r.id;
       return `<div class="row"><span class="emo">${esc(r.emoji)}</span><div class="grow"><div class="label">${esc(r.label)}</div>
         <div class="sub">${r.cost} points${can?'':`, ${r.cost-Math.max(avail,0)} more to go`}</div>${can?'':`<div class="bar"><i style="width:${pct}%"></i></div>`}</div>
@@ -534,9 +563,12 @@ function kidView(kid){
     }).join('') : '<div class="empty">No prizes yet. Ask Mom or Dad to add some.</div>'}</div>`;
   } else if(ui.ktab==='earn'){
     const bs = byPts(sorted(main && main.behaviors)), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
-    const list = arr => `<div class="list">${arr.map(b => { const sub = streakNote(kid,b);
-      return `<div class="row"><span class="emo">${esc(b.emoji)}</span><div class="grow"><div class="label">${esc(b.label)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></div>`; }).join('') || '<div class="empty">Nothing here yet.</div>'}</div>`;
-    body = `<h2>Ways to earn points</h2>${list(up)}<h2>Ways to lose points</h2>${list(down)}`;
+    const asked = new Set(petitionsFor(kid).map(q => q.bid).filter(Boolean));
+    const list = (arr, canAsk) => `<div class="list">${arr.map(b => { const sub = streakNote(kid,b);
+      return `<div class="row"><span class="emo">${esc(b.emoji)}</span><div class="grow"><div class="label">${esc(b.label)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span>
+        ${canAsk ? (asked.has(b.id) ? '<span class="sub asked">Asked</span>' : `<button class="btn gold small" data-act="petition" data-id="${b.id}">I did this</button>`) : ''}</div>`; }).join('') || '<div class="empty">Nothing here yet.</div>'}</div>`;
+    body = `<div class="hrow"><h2>Ways to earn points</h2><button class="btn ghost small" data-act="petition">+ Something else</button></div>
+      <p class="soft">Did one of these? Tap I did this and Mom or Dad will check it.</p>${list(up,true)}<h2>Ways to lose points</h2>${list(down,false)}`;
   } else {
     const w = weekStats(kid,0);
     body = `<h2>What happened</h2><p class="soft">This week: ${signed(w.earned)} earned, ${signed(-w.lost)} lost.</p>${historyList(kid,false)}`;
@@ -548,7 +580,11 @@ function kidView(kid){
     else { notes.push(`Saving for ${goal.emoji} ${goal.label}: ${Math.max(avail,0)} of ${goal.cost}`); pct = Math.max(0, Math.min(100, Math.round(avail/goal.cost*100))); }
   }
   return `<div class="k-${kid}">${banner()}${ticket(kid, {title:KIDS[kid].name+'’s points', notes, pct})}
-    ${tabs('ktab', [['prizes','Prizes'],['earn','How to earn'],['history','History']])}${body}
+    ${petitionsFor(kid).map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${esc(q.label)} <b>${signed(q.pts)}</b></div><div>You asked for points. Waiting for Mom or Dad.</div>
+        <div class="acts"><button class="btn ghost small" data-act="unpetition" data-id="${q.id}">Never mind</button></div></div>`).join('')}
+    ${pend.map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${esc(q.label)}</div><div>You asked for this prize. Waiting for Mom or Dad to say yes.</div>
+        <div class="acts"><button class="btn ghost small" data-act="cancel" data-id="${q.id}">Never mind</button></div></div>`).join('')}
+    ${tabs('ktab', [['prizes','Prizes'],['earn','Earn points'],['history','History']])}${body}
     <div class="foot"><button class="link" data-act="switch">Not ${KIDS[kid].name}?</button></div></div>`;
 }
 
@@ -586,6 +622,8 @@ function parentView(){
   else body = kidsOf(sel).map(weekView).join('');
   return `${banner()}<div class="top"><span class="soft">Signed in as ${PARENTS[role()].name}</span><button class="btn ghost small" data-act="setup" data-id="1">⚙️ Set up</button></div><div class="pair">${Object.keys(KIDS).map(k => ticket(k,{button:true})).join('')}</div>
     <button class="bothbtn" data-act="kid" data-id="both" aria-pressed="${both}">Both kids</button>
+    ${sorted(main.petitions).sort((a,b)=>a.ts-b.ts).map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${KIDS[q.kid].name} asks for ${signed(q.pts)}: ${esc(q.label)}</div><div>Asked ${when(q.ts).toLowerCase()}. Points count only if you approve.</div>
+      <div class="acts"><button class="btn ghost" data-act="pdecline" data-id="${q.id}">Decline</button><button class="btn" data-act="papprove" data-id="${q.id}">Approve</button></div></div>`).join('')}
     ${asks.map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${KIDS[q.kid].name} wants: ${esc(q.label)}</div><div>${q.cost} points, asked ${when(q.ts).toLowerCase()}. ${KIDS[q.kid].name} has ${bal(q.kid)}.</div>
       <div class="acts"><button class="btn ghost" data-act="decline" data-id="${q.id}">Decline</button><button class="btn" data-act="approve" data-id="${q.id}">Approve</button></div></div>`).join('')}
     ${tabs('ptab', [['give','Points'],['history','History'],['week','This week']])}<div>${body}</div>`;
@@ -599,7 +637,7 @@ function render(){
   else html = pickerView();
   $('#app').innerHTML = html + `<div class="foot ver"><span class="soft">Version ${VERSION}</span><button class="link" data-act="update">Check for update</button></div>`;
   for(const k in KIDS) lastBal[k] = bal(k);
-  const waiting = isParent(r) && main ? Object.keys(main.requests||{}).length : 0;
+  const waiting = isParent(r) && main ? Object.keys(main.requests||{}).length + Object.keys(main.petitions||{}).length : 0;
   document.title = (waiting ? `(${waiting}) ` : '') + 'Eisenberg Points';
 }
 
@@ -626,12 +664,17 @@ document.addEventListener('click', e => {
   else if(act==='kid'){ ui.kid = id; render(); }
   else if(act==='setup'){ ui.setup = !!id && isParent(r); render(); window.scrollTo(0,0); }
   else if(act==='switch'){
-    const out = () => { ls.set('ep_role', null); ui.setup = false; render(); };
+    const out = () => { ls.set('ep_role', null); ui.setup = false; $('#toast').className = ''; render(); };
     if(isParent(r) || !(main && main.pinHash)) out(); else pinSheet('enter', out);
   }
   else if(KIDS[r]){
     if(act==='request') requestPrize(r, id);
     else if(act==='cancel') cancelRequest(id);
+    else if(act==='unpetition') cancelPetition(id);
+    else if(act==='petition'){
+      const x = id && main.behaviors && main.behaviors[id];
+      if(x) askPoints(r, {label:x.label, emoji:x.emoji, pts:x.pts, bid:id}); else petitionSheet(r);
+    }
     else if(act==='goal') run(store.apply({set:{['goals.'+r]: main.goals && main.goals[r]===id ? DEL : id}}));
   }
   else if(isParent(r) && parentOK()){
@@ -639,6 +682,8 @@ document.addEventListener('click', e => {
     else if(act==='custom') customSheet(ui.kid, id);
     else if(act==='remove'){ removeEntry(b.dataset.kid, id, +b.dataset.pts); toast('Removed'); }
     else if(act==='approve') answer(id, true);
+    else if(act==='papprove') answerPetition(id, true);
+    else if(act==='pdecline') answerPetition(id, false);
     else if(act==='decline') answer(id, false);
     else if(act==='edit') itemSheet(kind, id);
     else if(act==='add') itemSheet(kind);
@@ -654,8 +699,10 @@ document.addEventListener('click', e => {
   let knownAsks = null;
   store.subMain(d => {
     main = d; loaded = true; loadError = ''; render();
-    const asks = (d && d.requests) || {};
-    if(knownAsks && isParent(role()) && parentOK()) for(const id in asks) if(!knownAsks.has(id)) toast(`${KIDS[asks[id].kid].name} asked for ${asks[id].label}`);
+    const asks = Object.assign({}, d && d.requests, d && d.petitions);
+    if(knownAsks && isParent(role()) && parentOK()) for(const id in asks) if(!knownAsks.has(id)){
+      const q = asks[id]; toast(q.cost!=null ? `${KIDS[q.kid].name} asked for ${q.label}` : `${KIDS[q.kid].name} asked for ${signed(q.pts)}: ${q.label}`);
+    }
     knownAsks = new Set(Object.keys(asks));
   }, fail);
   for(const k in KIDS) store.subLog(k, rows => { logs[k] = rows; logsLoaded[k] = true; render(); checkNews(k); }, fail);
