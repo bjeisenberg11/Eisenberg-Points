@@ -89,6 +89,8 @@ button.row:active{background:#F6F3FE}
 .who-grid button span{display:block;font-size:44px;margin-bottom:4px}
 .who-grid .k-emmie,.who-grid .k-dawson{background:var(--kid);color:#fff}
 .foot{text-align:center;margin-top:28px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.top h1{margin:0}
 
 #sheet{position:fixed;inset:0;background:rgba(35,28,79,.5);display:none;align-items:flex-end;justify-content:center;z-index:10}
 #sheet.open{display:flex}
@@ -206,7 +208,7 @@ function localStore(){
 /* ---------- state ---------- */
 let store, main = null, loaded = false, loadError = '';
 const logs = {emmie:[], dawson:[]};
-const ui = {kid:'emmie', ptab:'give', ktab:'prizes'};
+const ui = {kid:'emmie', ptab:'give', ktab:'prizes', setup:false};
 const lastBal = {};
 const ls = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} } };
 const role = () => ls.get('ep_role');
@@ -219,6 +221,7 @@ const signed = n => n>0 ? '+'+n : n<0 ? '−'+Math.abs(n) : '0';
 const cls = n => n>0?'plus':n<0?'minus':'zero';
 const bal = kid => (main && main.balances && main.balances[kid]) || 0;
 const sorted = obj => Object.entries(obj||{}).map(([id,v]) => ({id,...v})).sort((a,b)=>(a.ord||0)-(b.ord||0));
+const byPts = arr => arr.sort((a,b) => Math.abs(a.pts)-Math.abs(b.pts) || (a.ord||0)-(b.ord||0));
 const pendingFor = kid => sorted(main && main.requests).filter(q => q.kid===kid).sort((a,b)=>a.ts-b.ts);
 const available = kid => bal(kid) - pendingFor(kid).reduce((s,q)=>s+q.cost,0);
 async function hashPin(pin){
@@ -385,7 +388,7 @@ function kidView(kid){
         ${can?`<button class="btn gold small" data-act="request" data-id="${r.id}">Ask for it</button>`:''}</div>`;
     }).join('') : '<div class="empty">No prizes yet. Ask Mom or Dad to add some.</div>'}</div>`;
   } else if(ui.ktab==='earn'){
-    const bs = sorted(main && main.behaviors), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
+    const bs = byPts(sorted(main && main.behaviors)), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
     const list = arr => `<div class="list">${arr.map(b => `<div class="row"><span class="emo">${esc(b.emoji)}</span><div class="grow label">${esc(b.label)}</div><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></div>`).join('') || '<div class="empty">Nothing here yet.</div>'}</div>`;
     body = `<h2>Ways to earn points</h2>${list(up)}<h2>Ways to lose points</h2>${list(down)}`;
   } else body = `<h2>What happened</h2>${historyList(kid,false)}`;
@@ -400,26 +403,26 @@ function parentView(){
   const asks = sorted(main.requests).sort((a,b)=>a.ts-b.ts);
   let body = '';
   if(ui.ptab==='give'){
-    const bs = sorted(main.behaviors), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
+    const bs = byPts(sorted(main.behaviors)), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
     const list = arr => arr.map(b => `<button class="row" data-act="give" data-id="${b.id}"><span class="emo">${esc(b.emoji)}</span><span class="grow label">${esc(b.label)}</span><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></button>`).join('');
     body = `<h2>Give ${name} points</h2><div class="list">${list(up) || '<div class="empty">Add ways to earn points under Set up.</div>'}</div>
       <h2>Take points away from ${name}</h2><div class="list">${list(down) || '<div class="empty">Add ways to lose points under Set up.</div>'}</div>
       <div style="margin-top:16px"><button class="btn ghost wide" data-act="custom">Other amount</button></div>`;
-  } else if(ui.ptab==='history'){
-    body = `<h2>${name}’s history</h2>${historyList(kid,true)}`;
-  } else {
+  } else body = `<h2>${name}’s history</h2>${historyList(kid,true)}`;
+  if(ui.setup){
     const edit = (kind, arr, val) => `<div class="list">${arr.map(x => `<button class="row" data-act="edit" data-kind="${kind}" data-id="${x.id}"><span class="emo">${esc(x.emoji)}</span><span class="grow label">${esc(x.label)}</span><span class="pts ${kind==='behaviors'?cls(x.pts):''}">${val(x)}</span></button>`).join('')}
       <button class="row" data-act="add" data-kind="${kind}"><span class="emo">＋</span><span class="grow label">Add ${kind==='behaviors'?'one':'a prize'}</span></button></div>`;
-    body = `<h2>Ways to earn and lose points</h2><p class="soft">Tap one to change it. Both kids share this list.</p>${edit('behaviors', sorted(main.behaviors).sort((a,b)=>(b.pts>0)-(a.pts>0)), x=>signed(x.pts))}
+    return `${banner()}<div class="top"><h1>Set up</h1><button class="btn small" data-act="setup" data-id="">Done</button></div>
+      <h2>Ways to earn and lose points</h2><p class="soft">Tap one to change it. Both kids share this list.</p>${edit('behaviors', byPts(sorted(main.behaviors)).sort((a,b)=>(b.pts>0)-(a.pts>0)), x=>signed(x.pts))}
       <h2>Prizes</h2>${edit('rewards', sorted(main.rewards).sort((a,b)=>a.cost-b.cost), x=>x.cost)}
       <h2>This device</h2><div class="list">
         <button class="row" data-act="newpin"><span class="emo">🔑</span><span class="grow label">Change the parent PIN</span></button>
         <button class="row" data-act="switch"><span class="emo">🔁</span><span class="grow"><span class="label">Use this device as someone else</span><div class="sub">Signed in as ${PARENTS[role()].name}</div></span></button></div>`;
   }
-  return `${banner()}<div class="pair">${Object.keys(KIDS).map(k => ticket(k,{button:true})).join('')}</div>
+  return `${banner()}<div class="top"><span class="soft">Signed in as ${PARENTS[role()].name}</span><button class="btn ghost small" data-act="setup" data-id="1">⚙️ Set up</button></div><div class="pair">${Object.keys(KIDS).map(k => ticket(k,{button:true})).join('')}</div>
     ${asks.map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${KIDS[q.kid].name} wants: ${esc(q.label)}</div><div>${q.cost} points, asked ${when(q.ts).toLowerCase()}. ${KIDS[q.kid].name} has ${bal(q.kid)}.</div>
       <div class="acts"><button class="btn ghost" data-act="decline" data-id="${q.id}">Decline</button><button class="btn" data-act="approve" data-id="${q.id}">Approve</button></div></div>`).join('')}
-    ${tabs('ptab', [['give','Points'],['history','History'],['setup','Set up']])}<div class="k-${kid}">${body}</div>`;
+    ${tabs('ptab', [['give','Points'],['history','History']])}<div class="k-${kid}">${body}</div>`;
 }
 
 function render(){
@@ -452,8 +455,9 @@ document.addEventListener('click', e => {
   if(act==='role'){ if(KIDS[id]){ ls.set('ep_role', id); render(); } else becomeParent(id); }
   else if(act==='tab'){ ui[key] = id; render(); }
   else if(act==='kid'){ ui.kid = id; render(); }
+  else if(act==='setup'){ ui.setup = !!id && isParent(r); render(); window.scrollTo(0,0); }
   else if(act==='switch'){
-    const out = () => { ls.set('ep_role', null); render(); };
+    const out = () => { ls.set('ep_role', null); ui.setup = false; render(); };
     if(isParent(r) || !(main && main.pinHash)) out(); else pinSheet('enter', out);
   }
   else if(KIDS[r]){
