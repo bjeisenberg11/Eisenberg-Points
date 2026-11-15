@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eisenberg Points</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Points">
+<meta name="theme-color" content="#EEEAFB">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEEAFB; --ink:#231C4F; --soft:#6A6391; --card:#fff; --line:#DDD6F3;
+  --gold:#FFC93C; --plus:#1A8F5C; --minus:#D9482B;
+  --emmie:#D93A77; --dawson:#1677C9;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.4 Fredoka,ui-rounded,"SF Pro Rounded",system-ui,sans-serif;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+#app{max-width:620px;margin:0 auto;padding:16px 16px 96px}
+h1{font-size:28px;font-weight:600;margin:8px 0 4px;line-height:1.15}
+h2{font-size:19px;font-weight:600;margin:26px 0 10px}
+p{margin:0 0 12px}
+.soft{color:var(--soft)}
+.k-emmie{--kid:var(--emmie)} .k-dawson{--kid:var(--dawson)}
+
+/* the ticket: the one loud thing on the page */
+.ticket{display:flex;align-items:stretch;background:var(--kid);color:#fff;border-radius:18px;width:100%;text-align:left;
+  -webkit-mask:radial-gradient(circle at 0 50%,transparent 11px,#000 11.5px) left/51% 100% no-repeat,radial-gradient(circle at 100% 50%,transparent 11px,#000 11.5px) right/51% 100% no-repeat;
+          mask:radial-gradient(circle at 0 50%,transparent 11px,#000 11.5px) left/51% 100% no-repeat,radial-gradient(circle at 100% 50%,transparent 11px,#000 11.5px) right/51% 100% no-repeat}
+.ticket .main{flex:1;padding:18px 18px 18px 30px;min-width:0}
+.ticket .stub{display:flex;align-items:center;justify-content:center;padding:0 26px 0 16px;border-left:3px dashed rgba(255,255,255,.55);font-size:34px}
+.ticket .who{font-weight:500;font-size:17px;opacity:.95}
+.ticket .num{font-weight:700;font-size:76px;line-height:.95;letter-spacing:-1px;display:inline-block}
+.ticket .unit{font-weight:500;font-size:19px;margin-left:6px}
+.ticket .note{font-size:15px;margin-top:6px;opacity:.95}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pair .ticket .main{padding:12px 10px 12px 24px}
+.pair .ticket .num{font-size:46px}
+.pair .ticket .unit{font-size:15px}
+.pair .ticket .stub{display:none}
+.pair .ticket{opacity:.45;transition:opacity .15s}
+.pair .ticket[aria-pressed=true]{opacity:1}
+@keyframes bump{40%{transform:scale(1.18)}}
+.bump{animation:bump .45s ease}
+@media (prefers-reduced-motion:reduce){.bump{animation:none}.pair .ticket{transition:none}}
+
+.tabs{display:flex;gap:6px;margin:20px 0 4px;background:#fff;border-radius:999px;padding:5px}
+.tabs button{flex:1;padding:10px 6px;border-radius:999px;font-weight:500;color:var(--soft)}
+.tabs button[aria-selected=true]{background:var(--ink);color:#fff}
+
+.list{background:var(--card);border-radius:18px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:13px 14px;width:100%;text-align:left;border-top:1.5px solid var(--bg)}
+.row:first-child{border-top:0}
+button.row:active{background:#F6F3FE}
+.emo{font-size:26px;width:34px;text-align:center;flex:none}
+.grow{flex:1;min-width:0}
+.label{font-weight:500;overflow-wrap:anywhere}
+.sub{font-size:14px;color:var(--soft)}
+.pts{font-weight:700;font-size:19px;flex:none;white-space:nowrap}
+.pts.plus{color:var(--plus)} .pts.minus{color:var(--minus)} .pts.zero{color:var(--soft)}
+.empty{padding:22px 16px;color:var(--soft);text-align:center}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 18px;border-radius:999px;background:var(--ink);color:#fff;font-weight:600}
+.btn.gold{background:var(--gold);color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px var(--line)}
+.btn.small{min-height:38px;padding:6px 14px;font-size:15px}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.4;cursor:default}
+.link{color:var(--soft);text-decoration:underline;font-size:15px;padding:10px}
+.bar{height:8px;border-radius:99px;background:var(--bg);margin-top:7px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gold);border-radius:99px}
+
+.ask{background:var(--gold);border-radius:18px;padding:14px;margin-top:12px}
+.ask .acts{display:flex;gap:8px;margin-top:10px}
+.ask .acts .btn{flex:1}
+.banner{background:#fff;border-radius:14px;padding:10px 14px;font-size:14px;color:var(--soft);margin-bottom:12px}
+.banner.err{background:#FDE4DD;color:#7A2412}
+.who-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+.who-grid button{background:#fff;border-radius:22px;padding:26px 10px;font-weight:600;font-size:21px}
+.who-grid button span{display:block;font-size:44px;margin-bottom:4px}
+.who-grid .k-emmie,.who-grid .k-dawson{background:var(--kid);color:#fff}
+.foot{text-align:center;margin-top:28px}
+
+#sheet{position:fixed;inset:0;background:rgba(35,28,79,.5);display:none;align-items:flex-end;justify-content:center;z-index:10}
+#sheet.open{display:flex}
+#sheet form{background:#fff;width:100%;max-width:620px;border-radius:24px 24px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+#sheet h3{margin:0 0 14px;font-size:22px;font-weight:600}
+.field{display:block;margin-bottom:14px}
+.field span{display:block;font-size:15px;color:var(--soft);margin-bottom:5px}
+.field input{width:100%;padding:12px 14px;border-radius:14px;border:2px solid var(--line);background:#fff;font-size:18px}
+.field input:focus{border-color:var(--ink);outline:0}
+.two{display:grid;grid-template-columns:84px 1fr;gap:10px}
+.seg{display:flex;gap:6px;background:var(--bg);border-radius:999px;padding:5px;margin-bottom:14px}
+.seg label{flex:1;text-align:center}
+.seg input{position:absolute;opacity:0}
+.seg span{display:block;padding:9px;border-radius:999px;font-weight:500;color:var(--soft)}
+.seg input:checked+span{background:#fff;color:var(--ink)}
+.seg input:focus-visible+span{outline:3px solid var(--ink)}
+.pin{letter-spacing:.5em;text-align:center;font-size:30px!important;font-weight:600}
+.acts2{display:flex;gap:8px;margin-top:6px}
+.acts2 .btn{flex:1}
+.msg{color:var(--minus);font-size:15px;min-height:22px;margin:-4px 0 8px}
+
+#toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 12px 10px 20px;display:none;align-items:center;gap:12px;width:max-content;max-width:calc(100% - 24px);z-index:9;font-weight:500;border-radius:24px}
+#toast.open{display:flex}
+#toast button{background:var(--gold);color:var(--ink);border-radius:999px;padding:6px 14px;font-weight:600;flex:none}
+#toast.plain{padding-right:20px}
+</style>
+</head>
+<body>
+<div id="app"><p class="soft" style="padding:40px 0;text-align:center">Loading points…</p></div>
+<div id="sheet"></div>
+<div id="toast" role="status"></div>
+
+<script>
+/* ============================================================
+   SYNC SETTINGS
+   Paste the Firebase web config between the braces to turn on
+   live sync between devices. While this is null, the app runs
+   in preview mode and keeps everything on the one device.
+   ============================================================ */
+const FIREBASE_CONFIG = null;
+
+const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
+const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
+const DEFAULTS = {
+  behaviors:[
+    ['🛏️','Made the bed',1],['📚','Homework done without being asked',2],['🧹','Helped with chores',2],
+    ['💛','Kind to your sibling',2],['📖','Read for 20 minutes',2],['👂','Great listening',1],['🌟','Went above and beyond',5],
+    ['🙉','Didn’t listen',-1],['🗯️','Talked back',-2],['🥊','Fighting with your sibling',-2],['📱','Argued about screen time',-2]
+  ],
+  rewards:[
+    ['📺','30 extra minutes of screen time',10],['🍕','Pick what’s for dinner',15],['🎬','Pick the family movie',15],
+    ['🌙','Stay up 30 minutes late',20],['🍦','Ice cream trip',25],['💵','$5',30],['🛌','Sleepover with a friend',50]
+  ]
+};
+
+/* ---------- storage: Firebase when configured, this device otherwise ---------- */
+const INC = n => ({$inc:n}), DEL = {$del:true};
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+async function firebaseStore(cfg){
+  const base = 'https://www.gstatic.com/firebasejs/10.12.0/';
+  const [{initializeApp}, fs] = await Promise.all([import(base+'firebase-app.js'), import(base+'firebase-firestore.js')]);
+  const db = fs.getFirestore(initializeApp(cfg));
+  const mainRef = fs.doc(db,'family','main');
+  const logCol = kid => fs.collection(db,'family','main','log_'+kid);
+  const conv = v => v && v.$inc!==undefined ? fs.increment(v.$inc) : v && v.$del ? fs.deleteField() : v;
+  return {
+    subMain(cb,err){ fs.onSnapshot(mainRef, s => cb(s.exists()? s.data() : null), err); },
+    subLog(kid,cb,err){ fs.onSnapshot(fs.query(logCol(kid), fs.orderBy('ts','desc'), fs.limit(80)), s => cb(s.docs.map(d => ({id:d.id, ...d.data()}))), err); },
+    seed(obj){ return fs.setDoc(mainRef, obj, {merge:true}); },
+    apply({set,addLog,delLog}){
+      const b = fs.writeBatch(db);
+      if(set){ const u={}; for(const k in set) u[k]=conv(set[k]); b.update(mainRef,u); }
+      if(addLog) b.set(fs.doc(logCol(addLog.kid), addLog.id), addLog.entry);
+      if(delLog) b.delete(fs.doc(logCol(delLog.kid), delLog.id));
+      return b.commit();
+    }
+  };
+}
+
+function localStore(){
+  const KEY='ep_local';
+  let data; try{ data = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
+  data = data || {main:null, logs:{emmie:[],dawson:[]}};
+  const subs = {main:[], emmie:[], dawson:[]};
+  const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){} };
+  const emit = () => { subs.main.forEach(f=>f(data.main)); for(const k in KIDS) subs[k].forEach(f=>f([...data.logs[k]].sort((a,b)=>b.ts-a.ts).slice(0,80))); };
+  return {
+    subMain(cb){ subs.main.push(cb); cb(data.main); },
+    subLog(kid,cb){ subs[kid].push(cb); cb([...data.logs[kid]].sort((a,b)=>b.ts-a.ts)); },
+    async seed(obj){ data.main = Object.assign(data.main||{}, obj); save(); emit(); },
+    async apply({set,addLog,delLog}){
+      if(set) for(const path in set){
+        const keys = path.split('.'), last = keys.pop(); let o = data.main;
+        for(const k of keys) o = o[k] = o[k] || {};
+        const v = set[path];
+        if(v && v.$inc!==undefined) o[last] = (o[last]||0) + v.$inc;
+        else if(v && v.$del) delete o[last];
+        else o[last] = v;
+      }
+      if(addLog) data.logs[addLog.kid].push({id:addLog.id, ...addLog.entry});
+      if(delLog) data.logs[delLog.kid] = data.logs[delLog.kid].filter(e => e.id!==delLog.id);
+      save(); emit();
+    }
+  };
+}
+
+/* ---------- state ---------- */
+let store, main = null, loaded = false, loadError = '';
+const logs = {emmie:[], dawson:[]};
+const ui = {kid:'emmie', ptab:'give', ktab:'prizes'};
+const lastBal = {};
+const ls = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} } };
+const role = () => ls.get('ep_role');
+const isParent = r => !!PARENTS[r];
+const parentOK = () => main && main.pinHash && ls.get('ep_pin') === main.pinHash;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const signed = n => n>0 ? '+'+n : n<0 ? '−'+Math.abs(n) : '0';
+const cls = n => n>0?'plus':n<0?'minus':'zero';
+const bal = kid => (main && main.balances && main.balances[kid]) || 0;
+const sorted = obj => Object.entries(obj||{}).map(([id,v]) => ({id,...v})).sort((a,b)=>(a.ord||0)-(b.ord||0));
+const pendingFor = kid => sorted(main && main.requests).filter(q => q.kid===kid).sort((a,b)=>a.ts-b.ts);
+const available = kid => bal(kid) - pendingFor(kid).reduce((s,q)=>s+q.cost,0);
+async function hashPin(pin){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('eisenberg-points:'+pin));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function when(ts){
+  const d = new Date(ts), now = new Date(), t = d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  const day = x => new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+  const diff = Math.round((day(now)-day(d))/864e5);
+  if(diff===0) return 'Today '+t;
+  if(diff===1) return 'Yesterday '+t;
+  return d.toLocaleDateString([], {month:'short',day:'numeric'})+' '+t;
+}
+
+/* ---------- actions ---------- */
+function run(p){ Promise.resolve(p).catch(e => toast('That didn’t save. Check the connection and try again.')); }
+
+function give(kid, pts, label, emoji){
+  const id = uid();
+  run(store.apply({ set:{['balances.'+kid]:INC(pts)}, addLog:{kid,id,entry:{pts,label,emoji:emoji||'⭐',by:role(),ts:Date.now(),type:'points'}} }));
+  toast(`${KIDS[kid].name} ${signed(pts)} for ${label}`, () => removeEntry(kid,id,pts));
+}
+function removeEntry(kid,id,pts){ run(store.apply({ set:{['balances.'+kid]:INC(-pts)}, delLog:{kid,id} })); }
+function requestPrize(kid, rid){
+  const r = main.rewards[rid]; if(!r || available(kid) < r.cost) return;
+  run(store.apply({ set:{['requests.'+uid()]:{kid,label:r.label,emoji:r.emoji,cost:r.cost,ts:Date.now()}} }));
+  toast('Asked for it. Mom or Dad will get back to you.');
+}
+function cancelRequest(id){ run(store.apply({ set:{['requests.'+id]:DEL} })); }
+function answer(id, yes){
+  const q = main.requests && main.requests[id]; if(!q) return;
+  const set = {['requests.'+id]:DEL};
+  if(yes) set['balances.'+q.kid] = INC(-q.cost);
+  run(store.apply({ set, addLog:{kid:q.kid,id:uid(),entry:{pts:yes?-q.cost:0,label:q.label,emoji:q.emoji,by:role(),ts:Date.now(),type:yes?'prize':'declined'}} }));
+  toast(yes ? `Approved ${q.label} for ${KIDS[q.kid].name}` : `Declined ${q.label}`);
+}
+
+/* ---------- toast + sheet ---------- */
+let toastTimer;
+function toast(text, undo){
+  const t = $('#toast');
+  t.innerHTML = `<span>${esc(text)}</span>` + (undo ? '<button type="button">Undo</button>' : '');
+  t.className = 'open' + (undo ? '' : ' plain');
+  if(undo) t.querySelector('button').onclick = () => { undo(); t.className=''; };
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className='', undo ? 6000 : 3200);
+}
+function openSheet(html, onSubmit){
+  const s = $('#sheet');
+  s.innerHTML = `<form novalidate>${html}</form>`; s.className = 'open';
+  const f = s.querySelector('form');
+  f.onsubmit = async e => { e.preventDefault(); const r = await onSubmit(f, e.submitter); if(r !== false) closeSheet(); };
+  f.querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet);
+  s.onclick = e => { if(e.target === s) closeSheet(); };
+  const first = f.querySelector('[autofocus]'); if(first) setTimeout(() => first.focus(), 50);
+  return f;
+}
+function closeSheet(){ const s = $('#sheet'); s.className=''; s.innerHTML=''; }
+
+function pinSheet(mode, done){
+  const create = mode==='create';
+  openSheet(`
+    <h3>${create ? 'Choose a parent PIN' : 'Enter the parent PIN'}</h3>
+    ${create ? '<p class="soft">Mom and Dad share this 4-digit PIN. It keeps the kids out of the parent screens.</p>' : ''}
+    <label class="field"><span>${create?'New PIN':'PIN'}</span><input class="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autofocus></label>
+    ${create ? '<label class="field"><span>Type it again</span><input class="pin" name="pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></label>' : ''}
+    <div class="msg"></div>
+    <div class="acts2"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn">${create?'Save PIN':'Unlock'}</button></div>`,
+    async f => {
+      const pin = f.pin.value.trim(), msg = f.querySelector('.msg');
+      if(!/^\d{4}$/.test(pin)){ msg.textContent = 'Use exactly 4 numbers.'; return false; }
+      if(create && pin !== f.pin2.value.trim()){ msg.textContent = 'Those two don’t match.'; return false; }
+      const h = await hashPin(pin);
+      if(!create && h !== main.pinHash){ msg.textContent = 'That PIN isn’t right.'; f.pin.value=''; f.pin.focus(); return false; }
+      await done(h);
+    });
+}
+function itemSheet(kind, id){
+  const isB = kind==='behaviors', it = id ? main[kind][id] : null, n = it ? (isB ? it.pts : it.cost) : '';
+  openSheet(`
+    <h3>${id?'Edit':'Add'} ${isB?'a way to earn or lose points':'a prize'}</h3>
+    ${isB ? `<div class="seg"><label><input type="radio" name="dir" value="1" ${!it||it.pts>=0?'checked':''}><span>Earns points</span></label><label><input type="radio" name="dir" value="-1" ${it&&it.pts<0?'checked':''}><span>Loses points</span></label></div>`:''}
+    <div class="two">
+      <label class="field"><span>Emoji</span><input name="emoji" value="${esc(it?it.emoji:(isB?'⭐':'🎁'))}" maxlength="8" style="text-align:center"></label>
+      <label class="field"><span>${isB?'What they did':'Prize'}</span><input name="label" value="${esc(it?it.label:'')}" maxlength="60" ${id?'':'autofocus'}></label>
+    </div>
+    <label class="field"><span>${isB?'Points':'Cost in points'}</span><input name="n" type="number" inputmode="numeric" min="1" max="999" value="${n===''?'':Math.abs(n)}"></label>
+    <div class="msg"></div>
+    <div class="acts2">${id?'<button class="btn ghost" name="del" value="1" style="color:var(--minus)">Delete</button>':'<button type="button" class="btn ghost" data-close>Cancel</button>'}<button class="btn">Save</button></div>`,
+    (f, btn) => {
+      if(btn && btn.name==='del'){ run(store.apply({set:{[kind+'.'+id]:DEL}})); return; }
+      const label = f.label.value.trim(), num = Math.round(+f.n.value), msg = f.querySelector('.msg');
+      if(!label){ msg.textContent = 'Give it a name.'; return false; }
+      if(!(num>=1 && num<=999)){ msg.textContent = 'Enter a number from 1 to 999.'; return false; }
+      const v = {emoji:f.emoji.value.trim()||(isB?'⭐':'🎁'), label, ord: it ? (it.ord||0) : Date.now()};
+      if(isB) v.pts = num * (f.dir.value==='-1' ? -1 : 1); else v.cost = num;
+      run(store.apply({set:{[kind+'.'+(id||uid())]:v}}));
+    });
+}
+function customSheet(kid){
+  openSheet(`
+    <h3>Other amount for ${KIDS[kid].name}</h3>
+    <div class="seg"><label><input type="radio" name="dir" value="1" checked><span>Give points</span></label><label><input type="radio" name="dir" value="-1"><span>Take points away</span></label></div>
+    <label class="field"><span>How many</span><input name="n" type="number" inputmode="numeric" min="1" max="999" autofocus></label>
+    <label class="field"><span>What for</span><input name="label" maxlength="60" placeholder="Helped Grandpa carry groceries"></label>
+    <div class="msg"></div>
+    <div class="acts2"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn">Save</button></div>`,
+    f => {
+      const num = Math.round(+f.n.value), msg = f.querySelector('.msg');
+      if(!(num>=1 && num<=999)){ msg.textContent = 'Enter a number from 1 to 999.'; return false; }
+      give(kid, num*(f.dir.value==='-1'?-1:1), f.label.value.trim() || 'something special', '✏️');
+    });
+}
+
+/* ---------- views ---------- */
+function ticket(kid, opts={}){
+  const b = bal(kid), bump = lastBal[kid]!==undefined && lastBal[kid]!==b;
+  const inner = `<div class="main"><div class="who">${esc(opts.title || KIDS[kid].name)}</div>
+    <div><span class="num${bump?' bump':''}">${b}</span><span class="unit">${Math.abs(b)===1?'point':'points'}</span></div>
+    ${opts.note?`<div class="note">${esc(opts.note)}</div>`:''}</div><div class="stub" aria-hidden="true">${KIDS[kid].emoji}</div>`;
+  return opts.button
+    ? `<button class="ticket k-${kid}" data-act="kid" data-id="${kid}" aria-pressed="${ui.kid===kid}">${inner}</button>`
+    : `<div class="ticket k-${kid}">${inner}</div>`;
+}
+function tabs(key, items){
+  return `<div class="tabs" role="tablist">${items.map(([id,label]) => `<button role="tab" aria-selected="${ui[key]===id}" data-act="tab" data-key="${key}" data-id="${id}">${label}</button>`).join('')}</div>`;
+}
+function historyList(kid, parent){
+  const rows = logs[kid];
+  if(!rows.length) return `<div class="list"><div class="empty">${parent ? 'Nothing yet. Points you give or take away show up here.' : 'Nothing yet. Your points will show up here.'}</div></div>`;
+  return `<div class="list">${rows.map(e => {
+    const by = PARENTS[e.by] ? PARENTS[e.by].name : '';
+    const what = e.type==='prize' ? 'Prize approved' : e.type==='declined' ? 'Prize request declined' : '';
+    const sub = [when(e.ts), what, by && (e.type==='points' ? 'from '+by : 'by '+by)].filter(Boolean).join(', ');
+    return `<div class="row"><span class="emo">${esc(e.emoji)}</span><div class="grow"><div class="label">${esc(e.label)}</div><div class="sub">${esc(sub)}</div></div>
+      <span class="pts ${cls(e.pts)}">${e.type==='declined'?'':signed(e.pts)}</span>
+      ${parent ? `<button class="btn ghost small" data-act="remove" data-kid="${kid}" data-id="${e.id}" data-pts="${e.pts}">Remove</button>` : ''}</div>`;
+  }).join('')}</div>`;
+}
+function banner(){
+  return (loadError ? `<div class="banner err">${esc(loadError)}</div>` : '') +
+    (!FIREBASE_CONFIG ? '<div class="banner">Preview mode. Points stay on this device until sync is connected.</div>' : '');
+}
+
+function pickerView(){
+  return `${banner()}<h1>Who uses this device?</h1><p class="soft">Pick once. The app remembers it.</p>
+    <div class="who-grid">
+      ${Object.entries(KIDS).map(([id,k]) => `<button class="k-${id}" data-act="role" data-id="${id}"><span>${k.emoji}</span>${k.name}</button>`).join('')}
+      ${Object.entries(PARENTS).map(([id,p]) => `<button data-act="role" data-id="${id}"><span>${p.emoji}</span>${p.name}</button>`).join('')}
+    </div>`;
+}
+
+function kidView(kid){
+  const pend = pendingFor(kid), avail = available(kid);
+  let body = '';
+  if(ui.ktab==='prizes'){
+    const rewards = sorted(main && main.rewards).sort((a,b)=>a.cost-b.cost);
+    body = pend.map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${esc(q.label)}</div><div>Waiting for Mom or Dad to say yes.</div>
+        <div class="acts"><button class="btn ghost small" data-act="cancel" data-id="${q.id}">Never mind</button></div></div>`).join('');
+    body += `<h2>Prizes</h2><div class="list">${rewards.length ? rewards.map(r => {
+      const can = avail >= r.cost, pct = Math.max(0, Math.min(100, Math.round(avail/r.cost*100)));
+      return `<div class="row"><span class="emo">${esc(r.emoji)}</span><div class="grow"><div class="label">${esc(r.label)}</div>
+        <div class="sub">${r.cost} points${can?'':`, ${r.cost-Math.max(avail,0)} more to go`}</div>${can?'':`<div class="bar"><i style="width:${pct}%"></i></div>`}</div>
+        ${can?`<button class="btn gold small" data-act="request" data-id="${r.id}">Ask for it</button>`:''}</div>`;
+    }).join('') : '<div class="empty">No prizes yet. Ask Mom or Dad to add some.</div>'}</div>`;
+  } else if(ui.ktab==='earn'){
+    const bs = sorted(main && main.behaviors), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
+    const list = arr => `<div class="list">${arr.map(b => `<div class="row"><span class="emo">${esc(b.emoji)}</span><div class="grow label">${esc(b.label)}</div><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></div>`).join('') || '<div class="empty">Nothing here yet.</div>'}</div>`;
+    body = `<h2>Ways to earn points</h2>${list(up)}<h2>Ways to lose points</h2>${list(down)}`;
+  } else body = `<h2>What happened</h2>${historyList(kid,false)}`;
+  const held = bal(kid) - avail;
+  return `<div class="k-${kid}">${banner()}${ticket(kid, {title:KIDS[kid].name+'’s points', note: held ? `${held} set aside for a prize you asked for` : ''})}
+    ${tabs('ktab', [['prizes','Prizes'],['earn','How to earn'],['history','History']])}${body}
+    <div class="foot"><button class="link" data-act="switch">Not ${KIDS[kid].name}?</button></div></div>`;
+}
+
+function parentView(){
+  const kid = ui.kid, name = KIDS[kid].name;
+  const asks = sorted(main.requests).sort((a,b)=>a.ts-b.ts);
+  let body = '';
+  if(ui.ptab==='give'){
+    const bs = sorted(main.behaviors), up = bs.filter(b=>b.pts>0), down = bs.filter(b=>b.pts<0);
+    const list = arr => arr.map(b => `<button class="row" data-act="give" data-id="${b.id}"><span class="emo">${esc(b.emoji)}</span><span class="grow label">${esc(b.label)}</span><span class="pts ${cls(b.pts)}">${signed(b.pts)}</span></button>`).join('');
+    body = `<h2>Give ${name} points</h2><div class="list">${list(up) || '<div class="empty">Add ways to earn points under Set up.</div>'}</div>
+      <h2>Take points away from ${name}</h2><div class="list">${list(down) || '<div class="empty">Add ways to lose points under Set up.</div>'}</div>
+      <div style="margin-top:16px"><button class="btn ghost wide" data-act="custom">Other amount</button></div>`;
+  } else if(ui.ptab==='history'){
+    body = `<h2>${name}’s history</h2>${historyList(kid,true)}`;
+  } else {
+    const edit = (kind, arr, val) => `<div class="list">${arr.map(x => `<button class="row" data-act="edit" data-kind="${kind}" data-id="${x.id}"><span class="emo">${esc(x.emoji)}</span><span class="grow label">${esc(x.label)}</span><span class="pts ${kind==='behaviors'?cls(x.pts):''}">${val(x)}</span></button>`).join('')}
+      <button class="row" data-act="add" data-kind="${kind}"><span class="emo">＋</span><span class="grow label">Add ${kind==='behaviors'?'one':'a prize'}</span></button></div>`;
+    body = `<h2>Ways to earn and lose points</h2><p class="soft">Tap one to change it. Both kids share this list.</p>${edit('behaviors', sorted(main.behaviors).sort((a,b)=>(b.pts>0)-(a.pts>0)), x=>signed(x.pts))}
+      <h2>Prizes</h2>${edit('rewards', sorted(main.rewards).sort((a,b)=>a.cost-b.cost), x=>x.cost)}
+      <h2>This device</h2><div class="list">
+        <button class="row" data-act="newpin"><span class="emo">🔑</span><span class="grow label">Change the parent PIN</span></button>
+        <button class="row" data-act="switch"><span class="emo">🔁</span><span class="grow"><span class="label">Use this device as someone else</span><div class="sub">Signed in as ${PARENTS[role()].name}</div></span></button></div>`;
+  }
+  return `${banner()}<div class="pair">${Object.keys(KIDS).map(k => ticket(k,{button:true})).join('')}</div>
+    ${asks.map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${KIDS[q.kid].name} wants: ${esc(q.label)}</div><div>${q.cost} points, asked ${when(q.ts).toLowerCase()}. ${KIDS[q.kid].name} has ${bal(q.kid)}.</div>
+      <div class="acts"><button class="btn ghost" data-act="decline" data-id="${q.id}">Decline</button><button class="btn" data-act="approve" data-id="${q.id}">Approve</button></div></div>`).join('')}
+    ${tabs('ptab', [['give','Points'],['history','History'],['setup','Set up']])}<div class="k-${kid}">${body}</div>`;
+}
+
+function render(){
+  if(!loaded) return;
+  const r = role(); let html;
+  if(KIDS[r]) html = kidView(r);
+  else if(isParent(r) && parentOK()) html = parentView();
+  else html = pickerView();
+  $('#app').innerHTML = html;
+  for(const k in KIDS) lastBal[k] = bal(k);
+}
+
+/* ---------- events ---------- */
+function becomeParent(id){
+  const finish = async h => {
+    if(!main || !main.pinHash){
+      const seed = {pinHash:h, balances:{emmie:0,dawson:0}, behaviors:{}, rewards:{}, requests:{}};
+      DEFAULTS.behaviors.forEach(([emoji,label,pts],i) => seed.behaviors['b'+i] = {emoji,label,pts,ord:i});
+      DEFAULTS.rewards.forEach(([emoji,label,cost],i) => seed.rewards['r'+i] = {emoji,label,cost,ord:i});
+      await store.seed(seed); main = main || seed;
+    }
+    ls.set('ep_pin', h); ls.set('ep_role', id); render();
+  };
+  if(main && main.pinHash && ls.get('ep_pin')===main.pinHash) return finish(main.pinHash);
+  pinSheet(main && main.pinHash ? 'enter' : 'create', finish);
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b || b.closest('#sheet')) return;
+  const {act,id,kind,key} = b.dataset, r = role();
+  if(act==='role'){ if(KIDS[id]){ ls.set('ep_role', id); render(); } else becomeParent(id); }
+  else if(act==='tab'){ ui[key] = id; render(); }
+  else if(act==='kid'){ ui.kid = id; render(); }
+  else if(act==='switch'){
+    const out = () => { ls.set('ep_role', null); render(); };
+    if(isParent(r) || !(main && main.pinHash)) out(); else pinSheet('enter', out);
+  }
+  else if(KIDS[r]){
+    if(act==='request') requestPrize(r, id);
+    else if(act==='cancel') cancelRequest(id);
+  }
+  else if(isParent(r) && parentOK()){
+    if(act==='give'){ const x = main.behaviors[id]; if(x) give(ui.kid, x.pts, x.label, x.emoji); }
+    else if(act==='custom') customSheet(ui.kid);
+    else if(act==='remove'){ removeEntry(b.dataset.kid, id, +b.dataset.pts); toast('Removed'); }
+    else if(act==='approve') answer(id, true);
+    else if(act==='decline') answer(id, false);
+    else if(act==='edit') itemSheet(kind, id);
+    else if(act==='add') itemSheet(kind);
+    else if(act==='newpin') pinSheet('create', async h => { await store.apply({set:{pinHash:h}}); ls.set('ep_pin', h); toast('PIN changed. Mom and Dad both need the new one.'); });
+  }
+});
+
+/* ---------- start ---------- */
+(async function start(){
+  try{ store = FIREBASE_CONFIG ? await firebaseStore(FIREBASE_CONFIG) : localStore(); }
+  catch(e){ loaded = true; loadError = 'Couldn’t reach the sync service. Check the internet connection and reload.'; store = localStore(); }
+  const fail = e => { loaded = true; loadError = 'Sync isn’t working: ' + (e && e.code==='permission-denied' ? 'the database rules are blocking this app.' : 'check the internet connection.'); render(); };
+  store.subMain(d => { main = d; loaded = true; loadError = ''; render(); }, fail);
+  for(const k in KIDS) store.subLog(k, rows => { logs[k] = rows; render(); }, fail);
+})();
+</script>
+</body>
+</html>
