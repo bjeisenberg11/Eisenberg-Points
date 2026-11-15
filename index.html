@@ -143,6 +143,10 @@ button.row:active{background:#F6F3FE}
 .conf{position:absolute;top:-24px;width:10px;height:16px;border-radius:3px;animation:fall 2.4s linear forwards}
 @keyframes fall{to{transform:translateY(112vh) rotate(600deg)}}
 @media (prefers-reduced-motion:reduce){.conf{display:none}}
+#sheet form{position:relative}
+#sheet h3{padding-right:44px}
+.xbtn{position:absolute;top:12px;right:12px;width:40px;height:40px;border-radius:50%;background:var(--bg);color:var(--ink);font-size:26px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:2}
+.xbtn:active{background:var(--line)}
 </style>
 </head>
 <body>
@@ -167,7 +171,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.1';   // bump on every change so Check for update can see it
+const VERSION = '1.2';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -368,7 +372,7 @@ function showNews(kid){
   const colors = ['#FFC93C','#D93A77','#1677C9','#1A8F5C','#fff'];
   const conf = happy ? Array.from({length:36}, (_,i) => `<i class="conf" style="left:${Math.random()*100}%;background:${colors[i%5]};animation-delay:${(Math.random()*.8).toFixed(2)}s"></i>`).join('') : '';
   const p = $('#pop');
-  p.innerHTML = `${conf}<div class="card" role="alertdialog" aria-label="${esc(title)}">
+  p.innerHTML = `${conf}<div class="card" role="alertdialog" aria-label="${esc(title)}"><button type="button" class="xbtn" aria-label="Close">&times;</button>
     ${big ? `<div class="big ${onlyPrize?'':cls(net)}">${big}</div>` : ''}<h3>${esc(title)}</h3>
     <div class="list">${news.slice(0,4).map(e => {
       const by = PARENTS[e.by] ? PARENTS[e.by].name : '';
@@ -379,7 +383,7 @@ function showNews(kid){
     <button class="btn ${happy?'gold':''} wide" type="button">${happy?'Nice!':'OK'}</button></div>`;
   p.className = 'open';
   const close = () => { news = []; p.className = ''; p.innerHTML = ''; };
-  p.querySelector('button').onclick = close;
+  p.querySelectorAll('.card > button').forEach(b => b.onclick = close);
   p.onclick = e => { if(e.target===p) close(); };
 }
 
@@ -394,7 +398,7 @@ function toast(text, undo){
 }
 function openSheet(html, onSubmit){
   const s = $('#sheet');
-  s.innerHTML = `<form novalidate>${html}</form>`; s.className = 'open';
+  s.innerHTML = `<form novalidate><button type="button" class="xbtn" data-close aria-label="Close">&times;</button>${html}</form>`; s.className = 'open';
   const f = s.querySelector('form');
   f.onsubmit = async e => { e.preventDefault(); const r = await onSubmit(f, e.submitter); if(r !== false) closeSheet(); };
   f.querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet);
