@@ -12,12 +12,22 @@ const pick = a => a[rnd(a.length)];
 /* ---------------- sound ---------------- */
 const AU = {ctx:null, muted:false};
 try{ AU.muted = localStorage.getItem('ep_mute')==='1'; }catch(e){}
+const SILENCE = 'data:audio/wav;base64,UklGRvQHAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YdAHAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+/* Must run inside a tap. On iPhone and iPad, web sound is silenced by the ring/silent switch unless the page
+   asks for the "playback" audio category, so ask for it; on older iOS a looping silent <audio> does the same job. */
 function auInit(){
   try{
-    if(!AU.ctx){ const A = window.AudioContext || window.webkitAudioContext; if(A) AU.ctx = new A(); }
-    if(AU.ctx && AU.ctx.state==='suspended') AU.ctx.resume();
+    if(navigator.audioSession){ try{ navigator.audioSession.type = 'playback'; }catch(e){} }
+    if(!AU.ctx){ const A = window.AudioContext || window.webkitAudioContext; if(!A) return; AU.ctx = new A(); AU.out = AU.ctx.createGain(); AU.out.gain.value = 2.4; AU.out.connect(AU.ctx.destination); }
+    if(AU.ctx.state !== 'running') AU.ctx.resume();
+    if(!AU.unlocked){ const b = AU.ctx.createBuffer(1, 1, 22050), src = AU.ctx.createBufferSource(); src.buffer = b; src.connect(AU.ctx.destination); src.start(0); AU.unlocked = true; }
+    if(!navigator.audioSession && !AU.muted){
+      if(!AU.el){ AU.el = new Audio(SILENCE); AU.el.loop = true; AU.el.setAttribute('playsinline',''); }
+      const pr = AU.el.play(); if(pr && pr.catch) pr.catch(() => {});
+    }
   }catch(e){}
 }
+function auRest(){ try{ if(AU.el) AU.el.pause(); }catch(e){} }
 function tone(f, d, type, vol, slide, delay){
   if(AU.muted || !AU.ctx) return;
   try{
@@ -25,7 +35,7 @@ function tone(f, d, type, vol, slide, delay){
     o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
     if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f+slide), t+d);
     g.gain.setValueAtTime(vol || .05, t); g.gain.exponentialRampToValueAtTime(.0001, t+d);
-    o.connect(g); g.connect(AU.ctx.destination); o.start(t); o.stop(t+d+.03);
+    o.connect(g); g.connect(AU.out); o.start(t); o.stop(t+d+.03);
   }catch(e){}
 }
 let noiseBuf = null;
@@ -35,7 +45,7 @@ function noise(d, vol, delay){
     if(!noiseBuf){ noiseBuf = AU.ctx.createBuffer(1, AU.ctx.sampleRate, AU.ctx.sampleRate); const ch = noiseBuf.getChannelData(0); for(let i=0;i<ch.length;i++) ch[i] = Math.random()*2-1; }
     const t = AU.ctx.currentTime + (delay||0), s = AU.ctx.createBufferSource(), g = AU.ctx.createGain();
     s.buffer = noiseBuf; g.gain.setValueAtTime(vol || .1, t); g.gain.exponentialRampToValueAtTime(.0001, t+d);
-    s.connect(g); g.connect(AU.ctx.destination); s.start(t); s.stop(t+d+.03);
+    s.connect(g); g.connect(AU.out); s.start(t); s.stop(t+d+.03);
   }catch(e){}
 }
 const seq = (notes, d, type, vol, gap) => notes.forEach((f,i) => tone(f, d, type, vol, 0, i*gap));
@@ -608,7 +618,7 @@ function open(opts){
   const muteBtn = q('.g-mute');
   const paintMute = () => { muteBtn.textContent = AU.muted ? '\u{1F507}' : '\u{1F50A}'; muteBtn.classList.toggle('off', AU.muted); muteBtn.setAttribute('aria-label', AU.muted ? 'Turn sound on' : 'Turn sound off'); };
   paintMute();
-  muteBtn.onclick = () => { AU.muted = !AU.muted; try{ localStorage.setItem('ep_mute', AU.muted ? '1' : '0'); }catch(e){} if(!AU.muted){ auInit(); tone(660, .08, 'square', .05); } paintMute(); };
+  muteBtn.onclick = () => { AU.muted = !AU.muted; try{ localStorage.setItem('ep_mute', AU.muted ? '1' : '0'); }catch(e){} if(AU.muted) auRest(); else { auInit(); tone(660, .08, 'square', .05); } paintMute(); };
 
   const fit = () => { const r = stage.getBoundingClientRect(), sc = Math.max(0.5, Math.min((r.width-12)/W, (r.height-8)/H)); cv.style.width = Math.floor(W*sc)+'px'; cv.style.height = Math.floor(H*sc)+'px'; };
   const fresh = () => { g = MAKE[opts.game](fx); inp.tap.length = 0; inp.held = {}; inp.px = null; acc = 0; lastHud = '';
@@ -628,16 +638,16 @@ function open(opts){
     if(left()<=0) return show(`<h2>No game time left</h2><p>Earn more game time, then come back and play.</p><button data-a="quit">Back to games</button>`);
     show(`<h2>${NAMES[opts.game]}</h2><p>${g.hint}</p><button class="gold" data-a="start">Start</button>`); };
   const play = () => { auInit(); hide(); state = 'play'; last = performance.now(); };
-  const pause = () => { if(state!=='play') return; state = 'pause'; opts.flush && opts.flush(); show(`<h2>Paused</h2><p>${opts.test ? 'Test mode.' : 'Your game time is not counting down.'}</p><button class="gold" data-a="resume">Keep playing</button><button data-a="quit">Back to games</button>`); };
+  const pause = () => { if(state!=='play') return; state = 'pause'; auRest(); opts.flush && opts.flush(); show(`<h2>Paused</h2><p>${opts.test ? 'Test mode.' : 'Your game time is not counting down.'}</p><button class="gold" data-a="resume">Keep playing</button><button data-a="quit">Back to games</button>`); };
   const over = () => {
-    state = 'over'; SFX.over(); const prev = opts.test ? 0 : opts.best(), isBest = !opts.test && g.score>prev && g.score>0;
+    state = 'over'; SFX.over(); setTimeout(auRest, 1200); const prev = opts.test ? 0 : opts.best(), isBest = !opts.test && g.score>prev && g.score>0;
     if(!opts.test){ opts.onScore(g.score); opts.flush(); }
     const again = left()>0;
     show(`<h2>Game over</h2><div class="big">${g.score}</div><p>${isBest ? 'New best score!' : opts.test ? 'Test mode. Scores are not saved.' : 'Your best: '+Math.max(prev,g.score)}</p>
       ${again ? '<button class="gold" data-a="again">Play again</button>' : '<p>Your game time is used up. Earn more to play again.</p>'}<button data-a="quit">Back to games</button>`);
     hud();
   };
-  const close = silent => { if(closed) return; closed = true; cancelAnimationFrame(raf); clearTimeout(msgT); if(!opts.test) opts.flush();
+  const close = silent => { if(closed) return; closed = true; auRest(); cancelAnimationFrame(raf); clearTimeout(msgT); if(!opts.test) opts.flush();
     window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', fit); document.removeEventListener('visibilitychange', vis);
     root.remove(); current = null; if(!silent && opts.onClose) opts.onClose(); };
 
@@ -665,6 +675,7 @@ function open(opts){
   const pend = () => { if(sw && !sw.moved && opts.game==='hopper') inp.tap.push('up'); sw = null; inp.px = null; };
   cv.addEventListener('pointerup', pend); cv.addEventListener('pointercancel', () => { sw = null; inp.px = null; });
   root.addEventListener('contextmenu', e => e.preventDefault());
+  root.addEventListener('pointerdown', () => { if(state==='play' || state==='ready') auInit(); }, true);
   const vis = () => { if(document.hidden) pause(); };
   document.addEventListener('visibilitychange', vis); window.addEventListener('resize', fit);
 
