@@ -291,7 +291,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.13';   // bump on every change so Check for update can see it
+const VERSION = '1.14';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -424,12 +424,12 @@ function playGame(game, test){
     onClose: () => render()
   })).catch(() => toast('Couldn\u2019t load the games. Check the connection and try again.'));
 }
-function awardGameTime(sel, mins){
+function awardGameTime(sel, mins, label){
   const set = {}, back = {}, added = [], now = Date.now();
   for(const kid of kidsOf(sel)){
     const sec = mins>0 ? mins*60 : -Math.min(-mins*60, gameSecs(kid));
     if(!sec) continue;
-    added.push({kid,id:uid(),entry:{pts:0,label:sec>0?'Game time':'Game time taken away',emoji:'🎮',by:role(),ts:now,type:'gametime',gsec:sec}});
+    added.push({kid,id:uid(),entry:{pts:0,label:sec>0?(label||'Game time'):'Game time taken away',emoji:'🎮',by:role(),ts:now,type:'gametime',gsec:sec}});
     set['gameTime.'+kid] = INC(sec); back['gameTime.'+kid] = INC(-sec);
   }
   if(!added.length) return false;
@@ -495,7 +495,7 @@ function give(sel, pts, label, emoji, b, asked){
   for(const kid of kidsOf(sel)){
     let total = pts;
     const entry = {pts,label,emoji:emoji||'⭐',by:role(),ts:now,type:'points'};
-    if(b) entry.bid = b.id;
+    if(b && b.id) entry.bid = b.id;
     if(asked) entry.asked = true;
     if(gm){ entry.gsec = gm*60; set['gameTime.'+kid] = INC(gm*60); back['gameTime.'+kid] = INC(-gm*60); }
     added.push({kid,id:uid(),entry});
@@ -696,21 +696,31 @@ function pickSheet(bid){
 }
 function customSheet(kid, dir){
   const take = dir==='-1';
-  openSheet(`
+  const f = openSheet(`
     <h3>Custom amount${kid ? ' for '+whoName(kid) : ''}</h3>
     ${kid ? '' : `<div class="seg">${Object.keys(KIDS).map(k => `<label><input type="radio" name="kid" value="${k}"><span>${KIDS[k].name}</span></label>`).join('')}<label><input type="radio" name="kid" value="both"><span>Both</span></label></div>`}
     <div class="seg"><label><input type="radio" name="dir" value="1" ${take?'':'checked'}><span>Give points</span></label><label><input type="radio" name="dir" value="-1" ${take?'checked':''}><span>Take points away</span></label></div>
-    <label class="field"><span>How many</span><input name="n" type="number" inputmode="numeric" min="1" max="999" autofocus></label>
+    <div class="half">
+      <label class="field"><span>Points</span><input name="n" type="number" inputmode="numeric" min="0" max="999" autofocus></label>
+      <label class="field gm"><span>Game time (min)</span><input name="gm" type="number" inputmode="numeric" min="0" max="240" placeholder="None"></label>
+    </div>
     <label class="field"><span>What for</span><input name="label" maxlength="60" placeholder="Helped Grandpa carry groceries"></label>
     <div class="msg"></div>
     <div class="acts2"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn">Save</button></div>`,
     f => {
-      const num = Math.round(+f.n.value), msg = f.querySelector('.msg');
-      if(!(num>=1 && num<=999)){ msg.textContent = 'Enter a number from 1 to 999.'; return false; }
+      const giving = f.dir.value!=='-1', pts = Math.round(+f.n.value || 0), gm = giving ? Math.round(+f.gm.value || 0) : 0, msg = f.querySelector('.msg');
+      if(!(pts>=0 && pts<=999)){ msg.textContent = 'Points must be 0 to 999.'; return false; }
+      if(!(gm>=0 && gm<=240)){ msg.textContent = 'Game time must be 0 to 240 minutes.'; return false; }
+      if(!giving && pts<1){ msg.textContent = 'Enter how many points to take away.'; return false; }
+      if(giving && !pts && !gm){ msg.textContent = 'Enter points, game time, or both.'; return false; }
       const to = kid || (f.querySelector('[name=kid]:checked') || {}).value;
       if(!to){ msg.textContent = 'Pick who gets it.'; return false; }
-      give(to, num*(f.dir.value==='-1'?-1:1), f.label.value.trim() || 'something special', '✏️');
+      const label = f.label.value.trim();
+      if(!pts) return void awardGameTime(to, gm, label || 'Game time');
+      give(to, giving ? pts : -pts, label || 'something special', '✏️', gm ? {pts, gameMin:gm} : null);
     });
+  const sync = () => { const giving = f.dir.value!=='-1'; f.querySelector('.gm').style.visibility = giving ? '' : 'hidden'; };
+  f.querySelectorAll('[name=dir]').forEach(r => r.addEventListener('change', sync)); sync();
 }
 
 /* ---------- views ---------- */
