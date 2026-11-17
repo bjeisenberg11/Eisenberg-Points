@@ -303,7 +303,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.18';   // bump on every change so Check for update can see it
+const VERSION = '1.19';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -439,8 +439,8 @@ function awardPrize(mk){
 function scoreTable(mk){
   const kids = Object.keys(KIDS);
   return `<div class="list stbl"><div class="row head"><span class="grow">Game</span>${kids.map(k => `<span class="c">${KIDS[k].name}</span>`).join('')}</div>
-    ${GAMES.map(g => `<div class="row"><span class="grow"><span class="label">${g.name}</span><div class="sub">Par ${g.par.toLocaleString()}</div></span>${kids.map(k => { const b = monthBest(mk,g.id,k); return `<span class="c"><b>${b ? b.toLocaleString() : '\u2013'}</b><span class="sub">${gamePct(g,b)}</span></span>`; }).join('')}</div>`).join('')}
-    <div class="row total"><span class="grow label">Total game score</span>${kids.map(k => `<span class="c"><b>${monthTotal(mk,k)}</b></span>`).join('')}</div></div>`;
+    ${GAMES.map(g => `<div class="row"><span class="grow"><span class="label">${g.name}</span><div class="sub">Par ${g.par.toLocaleString()}</div></span>${kids.map(k => { const b = monthBest(mk,g.id,k); return `<span class="c"><b>${b ? b.toLocaleString() : '\u2013'}</b><span class="sub">${gamePct(g,b)} pts</span></span>`; }).join('')}</div>`).join('')}
+    <div class="row total"><span class="grow label">Total game score</span>${kids.map(k => `<span class="c"><b>${monthTotal(mk,k)}</b><span class="sub">pts</span></span>`).join('')}</div></div>`;
 }
 const gameSecs = kid => Math.max(0, Math.round((main && main.gameTime && main.gameTime[kid]) || 0));
 const fmtGame = sec => sec>=60 ? `${Math.floor(sec/60)} min` : `${sec} sec`;
@@ -903,7 +903,7 @@ function parentView(){
       <div class="list">${kids.map(k => `<div class="row"><span class="grow label">${KIDS[k].name}</span><span class="pts">${gameSecs(k) ? fmtGame(gameSecs(k)) : 'None'}</span></div>`).join('')}</div>
       <button class="btn wide" style="margin-top:10px" data-act="gtime">Award or deduct game time</button>
       <h2>${monthName(mk)} high scores</h2>
-      <p class="soft hint">Each game\u2019s best this month is scored as a percent of par, up to ${PCT_CAP}, and the games are added. Highest total at month end wins ${PRIZE_PTS} points; a tie splits it.${r ? ` ${r.tie ? 'Tied right now.' : `${KIDS[r.winners[0]].name} leads.`}` : ''}</p>
+      <p class="soft hint">Each game\u2019s best this month earns game points (pts): its percent of par, up to ${PCT_CAP}. The game points are added. Highest total at month end wins ${PRIZE_PTS} points; a tie splits it.${r ? ` ${r.tie ? 'Tied right now.' : `${KIDS[r.winners[0]].name} leads.`}` : ''}</p>
       ${scoreTable(mk)}
       <h2>All-time best</h2><div class="list">${GAMES.map(g => `<div class="row"><span class="grow label">${g.name}</span><span class="sub">${esc(scoreLine(g.id))}</span></div>`).join('')}</div>
       ${past.length ? `<h2>Past champions</h2><div class="list">${past.map(m => { const pr = main.prizes[m]; return `<div class="row"><span class="grow label">${monthName(m)}</span><span class="sub">${pr.winners.map(k => KIDS[k].name).join(' and ')}, +${pr.each}${pr.winners.length>1?' each':''}</span></div>`; }).join('')}</div>` : ''}
