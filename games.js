@@ -594,6 +594,41 @@ const CSS = `
 .g-fire{min-width:120px;height:64px;font-size:19px;background:#ffc93c!important;color:#231c4f!important}
 .g-fire.dn{filter:brightness(.88)}
 @media (prefers-reduced-motion:reduce){.g-msg{transition:none}}
+
+/* ---- sizing for every screen: controls and text grow with the device ---- */
+#ep-game{--b:clamp(54px,8.2vmin,88px);--gap:clamp(6px,1vmin,10px);display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"bar" "stage" "pad"}
+.g-bar{grid-area:bar}
+.g-stage{grid-area:stage;min-width:0;overflow:hidden}
+.g-bar{min-width:0}
+.g-pad{grid-area:pad;padding:clamp(8px,1.6vmin,18px) clamp(14px,3vmin,32px) clamp(12px,2vmin,24px)}
+.g-dpad{grid-template-columns:repeat(3,var(--b));grid-template-rows:repeat(2,calc(var(--b)*.93));gap:var(--gap)}
+.g-dpad button,.g-fire{font-size:calc(var(--b)*.4);border-radius:calc(var(--b)*.24)}
+.g-dpad.lr{grid-template-rows:calc(var(--b)*1.1);grid-template-columns:repeat(2,calc(var(--b)*1.3))}
+.g-fire{min-width:calc(var(--b)*2.1);height:calc(var(--b)*1.1);font-size:calc(var(--b)*.33)}
+.g-bar .g-x,.g-bar .g-pause,.g-bar .g-mute{min-height:clamp(40px,5.4vmin,52px);min-width:clamp(42px,5.6vmin,56px);font-size:clamp(15px,2.2vmin,20px)}
+.g-name{font-size:clamp(16px,2.5vmin,23px)}
+.g-score{font-size:clamp(19px,2.9vmin,28px)}
+.g-time,.g-lives{font-size:clamp(15px,2.2vmin,20px)}
+.g-info{font-size:clamp(12px,1.8vmin,17px)}
+.g-msg{font-size:clamp(24px,4.4vmin,44px)}
+.g-card{max-width:min(440px,92%);padding:clamp(20px,3.4vmin,34px) clamp(18px,3vmin,30px)}
+.g-card h2{font-size:clamp(24px,3.8vmin,36px)}
+.g-card p{font-size:clamp(15px,2.3vmin,20px)}
+.g-card .big{font-size:clamp(50px,8vmin,80px)}
+.g-card button{min-height:clamp(48px,6.4vmin,62px);font-size:clamp(16px,2.4vmin,21px)}
+
+/* ---- sideways screens: d-pad on the left, Fire on the right, game in the middle ---- */
+@media (orientation:landscape) and (min-aspect-ratio:6/5){
+  #ep-game{--b:clamp(46px,9vmin,80px);--side:calc(var(--b)*3 + var(--gap)*2 + 20px);grid-template-columns:var(--side) minmax(0,1fr) var(--side);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"bar bar bar" "left stage right"}
+  .g-pad{display:contents}
+  .g-dpad{grid-area:left;align-self:end;justify-self:center;margin-bottom:clamp(12px,4vmin,40px)}
+  .g-fire{grid-area:right;align-self:end;justify-self:center;margin-bottom:clamp(12px,4vmin,40px)}
+  .g-stage{padding:0 4px 8px}
+}
+@media (orientation:landscape) and (max-height:500px){
+  .g-bar{padding:4px 10px}
+  .g-bar .g-x,.g-bar .g-pause,.g-bar .g-mute{min-height:34px;min-width:38px}
+}
 `;
 let styled = false, current = null;
 
@@ -620,7 +655,7 @@ function open(opts){
   paintMute();
   muteBtn.onclick = () => { AU.muted = !AU.muted; try{ localStorage.setItem('ep_mute', AU.muted ? '1' : '0'); }catch(e){} if(AU.muted) auRest(); else { auInit(); tone(660, .08, 'square', .05); } paintMute(); };
 
-  const fit = () => { const r = stage.getBoundingClientRect(), sc = Math.max(0.5, Math.min((r.width-12)/W, (r.height-8)/H)); cv.style.width = Math.floor(W*sc)+'px'; cv.style.height = Math.floor(H*sc)+'px'; };
+  const fit = () => { const r = stage.getBoundingClientRect(); let sc = Math.max(0.5, Math.min((r.width-12)/W, (r.height-8)/H)); const whole = Math.floor(sc); if(whole >= 2 && sc - whole < sc*.08) sc = whole; /* crisp whole-pixel scale when it costs little size */ cv.style.width = Math.round(W*sc)+'px'; cv.style.height = Math.round(H*sc)+'px'; };
   const fresh = () => { g = MAKE[opts.game](fx); inp.tap.length = 0; inp.held = {}; inp.px = null; acc = 0; lastHud = '';
     q('.g-dpad').className = 'g-dpad' + (g.pad==='lrfire' ? ' lr' : ''); q('.g-dpad .u').hidden = q('.g-dpad .d').hidden = g.pad==='lrfire';
     q('.g-fire').style.display = g.pad==='lrfire' ? '' : 'none'; q('.g-fire').textContent = g.fireLabel || 'Fire'; fit(); };
@@ -648,7 +683,7 @@ function open(opts){
     hud();
   };
   const close = silent => { if(closed) return; closed = true; auRest(); cancelAnimationFrame(raf); clearTimeout(msgT); if(!opts.test) opts.flush();
-    window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', fit); document.removeEventListener('visibilitychange', vis);
+    window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', fit); document.removeEventListener('visibilitychange', vis); if(ro) ro.disconnect();
     root.remove(); current = null; if(!silent && opts.onClose) opts.onClose(); };
 
   panel.addEventListener('click', e => { const a = e.target.dataset && e.target.dataset.a; if(!a) return;
@@ -678,6 +713,7 @@ function open(opts){
   root.addEventListener('pointerdown', () => { if(state==='play' || state==='ready') auInit(); }, true);
   const vis = () => { if(document.hidden) pause(); };
   document.addEventListener('visibilitychange', vis); window.addEventListener('resize', fit);
+  const ro = window.ResizeObserver ? new ResizeObserver(fit) : null; if(ro) ro.observe(stage);
 
   const frame = t => {
     if(closed) return; raf = requestAnimationFrame(frame);
