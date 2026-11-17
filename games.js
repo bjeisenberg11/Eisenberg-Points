@@ -553,8 +553,141 @@ function hopper(fx){
   return g;
 }
 
-const MAKE = {snake, bricks, blasters, hopper};
-const NAMES = {snake:'Snake', bricks:'Brick Breaker', blasters:'Space Blasters', hopper:'Road Hopper'};
+/* ================= Cheese Chase ================= */
+function chase(fx){
+  const T = 12, MX = 6, MY = 34, COLS = 19, ROWS = 21;
+  const MAP = [
+    '###################','#........#........#','#o##.###.#.###.##o#','#.................#','#.##.#.#####.#.##.#','#....#...#...#....#',
+    '####.### # ###.####','   #.#       #.#   ','####.# ##-## #.####','T   .  #   #  .   T','####.# ##### #.####','   #.#       #.#   ',
+    '####.# ##### #.####','#........#........#','#.##.###.#.###.##.#','#o.#.....P.....#.o#','##.#.#.#####.#.#.##','#....#...#...#....#',
+    '#.######.#.######.#','#.................#','###################'];
+  const DIRS = {up:{x:0,y:-1}, left:{x:-1,y:0}, down:{x:0,y:1}, right:{x:1,y:0}}, DLIST = [DIRS.up, DIRS.left, DIRS.down, DIRS.right];
+  const cell = (c,r) => r<0 || r>=ROWS ? '#' : MAP[r][(c+COLS)%COLS];
+  const open = (c,r,door) => { const ch = cell(c,r); return ch!=='#' && (ch!=='-' || door); };
+  const cx = c => MX + c*T + 6, cy = r => MY + r*T + 6;
+  const flip = src => { const cv = document.createElement('canvas'); cv.width = src.width; cv.height = src.height; const x = cv.getContext('2d'); x.translate(src.width,0); x.scale(-1,1); x.drawImage(src,0,0); return cv; };
+  const MOUSE = ['...........','..ee.......','.eppe......','.eppggggg..','..ggggggkg.','tggggggggn.','tggggggggn.','..gggggggg.','...gggggg..','..gg...gg..','...........'];
+  const mpal = {g:'#c9cfdf', e:'#9aa2ba', p:'#ff9fc0', k:'#1a1c2c', n:'#ff7eb6', t:'#ff9fc0'};
+  const M1 = spr(MOUSE, mpal), M2 = spr(MOUSE.map((r,i) => i===6 ? 'tgggggg....' : i===7 ? '..ggggggw..' : r), Object.assign({w:'#fff'}, mpal));
+  const MS = [M1, M2].map(m => ({right:m, left:flip(m), up:rot(m,3), down:rot(m,1)}));
+  const CAT = ['.c.......c.','.cc.....cc.','.ccccccccc.','.cwkcccwkc.','.cwkcccwkc.','.ccccccccc.','.cccpnpccc.','.ccccccccc.','.ccccccccc.','.cc.ccc.cc.','...........'];
+  const catSpr = col => spr(CAT, {c:col, w:'#fff', k:'#1a1c2c', p:col, n:'#ffb3c7'});
+  const SCARED = ['.c.......c.','.cc.....cc.','.ccccccccc.','.ccwcccwcc.','.ccwcccwcc.','.ccccccccc.','.cwcwcwcwc.','.ccwcwcwcc.','.ccccccccc.','.cc.ccc.cc.','...........'];
+  const SC1 = spr(SCARED, {c:'#3d5bd9', w:'#ffe1ec'}), SC2 = spr(SCARED, {c:'#e8ecff', w:'#ff5a5f'});
+  const EYES = spr(['...........','...........','...........','.ww....ww..','.wk....wk..','...........'], {w:'#fff', k:'#4cc9f0'});
+  const CHEESE = spr(['....yy....','...yyyy...','..yyoyyy..','.yyyyyyoy.','yyoyyyyyyy','yyyyyoyyyy','oooooooooo'], {y:'#ffd166', o:'#f0a92e'});
+  const BERRY = spr(['....gg...','...g.....','.rr.g.rr.','rrrrrrrrr','rwrrrrrrr','rrrrrrrrr','.rrrrrrr.','..rrrrr..','...rrr...'], {r:'#ff4d5a', w:'#ffb3b8', g:'#6fd36b'});
+  const COLORS = ['#ff9f43','#ff7eb6','#4cc9f0','#7bd389'], CSPR = COLORS.map(catSpr), CORNER = [{c:17,r:1},{c:1,r:1},{c:17,r:19},{c:1,r:19}];
+  /* maze drawn once */
+  const MAZE = document.createElement('canvas'); MAZE.width = W; MAZE.height = H;
+  (function(){ const m = MAZE.getContext('2d'); m.fillStyle = '#070919'; m.fillRect(0,0,W,H);
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const x = MX+c*T, y = MY+r*T, ch = MAP[r][c];
+      if(ch==='-'){ m.fillStyle = '#ff9fc0'; m.fillRect(x, y+5, T, 2); continue; }
+      if(ch!=='#') continue;
+      m.fillStyle = '#18246b'; m.fillRect(x,y,T,T);
+      m.fillStyle = '#5b7cff';
+      const w = (dc,dr) => { const rr = r+dr, cc = c+dc; return rr<0 || rr>=ROWS || cc<0 || cc>=COLS || MAP[rr][cc]==='#'; };
+      if(!w(0,-1)) m.fillRect(x,y,T,2); if(!w(0,1)) m.fillRect(x,y+T-2,T,2); if(!w(-1,0)) m.fillRect(x,y,2,T); if(!w(1,0)) m.fillRect(x+T-2,y,2,T);
+    } })();
+  let dots, left, pl, cats, level = 1, fright = 0, chain = 0, mode = 'scatter', modeT = 0, dead = 0, wait = 0, bonus = null, eaten = 0, tick = 0, want = null, extra = false, munch = 0;
+  const g = {score:0, lives:3, over:false, pad:'dpad', info:'Level 1', hint:'Swipe or use the arrows to steer the mouse. Eat every crumb. Grab a big cheese to scare the cats, then chase them for bonus points.'};
+  const P = Parts();
+  function fill(){ dots = MAP.map(r => [...r].map(ch => ch==='.' || ch==='o' ? ch : '')); left = 150; eaten = 0; bonus = null; }
+  function place(){
+    pl = {x:cx(9), y:cy(15), dx:0, dy:0, acc:0, face:'left'}; want = null; fright = 0; chain = 0; mode = 'scatter'; modeT = 0; wait = 70;
+    cats = [{c:9,r:7,st:'run',t:0},{c:9,r:9,st:'pen',t:120},{c:8,r:9,st:'pen',t:360},{c:10,r:9,st:'pen',t:600}].map((s,i) => ({i, x:cx(s.c), y:cy(s.r), dx:i?0:-1, dy:0, acc:0, st:s.st, t:s.t, scared:false}));
+  }
+  fill(); place();
+  g._dbg = k => { if(k==='win'){ dots.forEach(r => r.fill('')); left = 0; } if(k==='fright'){ fright = 400; cats.forEach(a => { if(a.st==='run') a.scared = true; }); } };
+  const atC = a => (a.x-MX-6) % T === 0 && (a.y-MY-6) % T === 0;
+  const tc = a => Math.round((a.x-MX-6)/T), tr = a => Math.round((a.y-MY-6)/T);
+  const wrap = a => { if(a.x < MX-6) a.x += COLS*T; else if(a.x > MX+COLS*T+6) a.x -= COLS*T; };
+  function move(a, speed, decide){ a.acc += speed; while(a.acc >= 1){ a.acc -= 1; if(atC(a)) decide(a); a.x += a.dx; a.y += a.dy; wrap(a); } }
+  function plDecide(a){
+    const c = tc(a), r = tr(a), d = dots[r] && dots[r][(c+COLS)%COLS];
+    if(d){
+      dots[r][(c+COLS)%COLS] = ''; left--; eaten++;
+      if(d==='o'){ g.score += 50; fright = Math.max(150, 400-level*40); chain = 0; SFX.power(); for(const k of cats) if(k.st==='run'){ k.scared = true; k.dx = -k.dx; k.dy = -k.dy; } }
+      else { g.score += 10; tone(munch++%2 ? 520 : 440, .05, 'square', .035); }
+      if(eaten===45 || eaten===105) bonus = {t:540};
+    }
+    if(bonus && c===9 && r===11){ const pts = 100*Math.min(level,5); g.score += pts; fx.msg('+'+pts); SFX.bonus(); bonus = null; }
+    if(want && open(c+want.x, r+want.y)){ a.dx = want.x; a.dy = want.y; }
+    if(!open(c+a.dx, r+a.dy)){ a.dx = 0; a.dy = 0; }
+  }
+  function target(a){
+    if(a.st==='leave') return {c:9, r:7}; if(a.st==='eyes') return {c:9, r:9};
+    if(mode==='scatter') return CORNER[a.i];
+    const pc = tc(pl), pr = tr(pl);
+    if(a.i===1) return {c:pc+pl.dx*3, r:pr+pl.dy*3};
+    if(a.i===2){ const b = cats[0]; return {c:2*(pc+pl.dx*2)-tc(b), r:2*(pr+pl.dy*2)-tr(b)}; }
+    if(a.i===3) return (pc-tc(a))**2 + (pr-tr(a))**2 > 36 ? {c:pc, r:pr} : CORNER[3];
+    return {c:pc, r:pr};
+  }
+  function catDecide(a){
+    const c = tc(a), r = tr(a);
+    if(a.st==='pen'){ a.dx = 0; a.dy = 0; return; }
+    if(a.st==='leave' && c===9 && r===7){ a.st = 'run'; }
+    if(a.st==='eyes' && c===9 && r===9){ a.st = 'leave'; a.scared = false; }
+    const door = a.st==='leave' || a.st==='eyes', tg = target(a);
+    let opts = DLIST.filter(d => open(c+d.x, r+d.y, door) && !(d.x===-a.dx && d.y===-a.dy && (a.dx || a.dy)));
+    if(!opts.length) opts = DLIST.filter(d => open(c+d.x, r+d.y, door));
+    if(!opts.length){ a.dx = 0; a.dy = 0; return; }
+    let best = opts[0];
+    if(a.scared && a.st==='run') best = pick(opts);
+    else { let bd = 1e9; for(const d of opts){ const dist = (c+d.x-tg.c)**2 + (r+d.y-tg.r)**2; if(dist < bd){ bd = dist; best = d; } } }
+    a.dx = best.x; a.dy = best.y;
+  }
+  g.update = inp => {
+    tick++; P.step();
+    for(const k of inp.tap) if(DIRS[k]) want = DIRS[k];
+    if(dead){ if(--dead===0){ if(g.lives<=0) g.over = true; else place(); } return; }
+    if(wait){ wait--; return; }
+    if(!left){ level++; g.score += 200; g.info = 'Level '+level; SFX.level(); fx.msg('Level '+level); fill(); place(); return; }
+    if(bonus && --bonus.t<=0) bonus = null;
+    if(fright){ if(--fright===0){ for(const k of cats) k.scared = false; } }
+    else if(++modeT >= (mode==='scatter' ? 60*6 : 60*20)){ modeT = 0; mode = mode==='scatter' ? 'chase' : 'scatter'; for(const k of cats) if(k.st==='run'){ k.dx = -k.dx; k.dy = -k.dy; } }
+    /* player */
+    if(want && (pl.dx || pl.dy) && want.x===-pl.dx && want.y===-pl.dy){ pl.dx = want.x; pl.dy = want.y; }
+    move(pl, Math.min(1.35, 1.08 + level*.04), plDecide);
+    if(pl.dx || pl.dy) pl.face = pl.dx>0 ? 'right' : pl.dx<0 ? 'left' : pl.dy<0 ? 'up' : 'down';
+    /* cats */
+    const cs = Math.min(1.3, .92 + level*.06);
+    for(const a of cats){
+      if(a.st==='pen'){ if(--a.t<=0) a.st = 'leave'; continue; }
+      move(a, a.st==='eyes' ? 2.2 : a.scared ? .6 : cs, catDecide);
+      if(Math.abs(a.x-pl.x) + Math.abs(a.y-pl.y) < 9){
+        if(a.st==='eyes') continue;
+        if(a.scared){ const pts = 200 * 2**Math.min(3, chain++); g.score += pts; fx.msg('+'+pts); SFX.bonus(); P.burst(a.x, a.y, COLORS[a.i], 12, 1.8); a.st = 'eyes'; a.scared = false; a.x = cx(tc(a)); a.y = cy(tr(a)); a.acc = 0; }
+        else { g.lives--; dead = 80; SFX.squash(); tone(196, .3, 'triangle', .08, -90, .2); fx.shake(6); P.burst(pl.x, pl.y, '#c9cfdf', 18, 2); return; }
+      }
+    }
+    if(!extra && g.score >= 3000){ extra = true; g.lives++; SFX.life(); fx.msg('Extra life'); }
+  };
+  g.draw = c => {
+    c.drawImage(MAZE, 0, 0);
+    for(let r=0;r<ROWS;r++) for(let k=0;k<COLS;k++){
+      const d = dots[r][k]; if(!d) continue;
+      if(d==='.'){ c.fillStyle = '#ffd98a'; c.fillRect(cx(k)-1, cy(r)-1, 2, 2); }
+      else if(tick%30 < 22) c.drawImage(CHEESE, cx(k)-5, cy(r)-4);
+    }
+    if(bonus && (bonus.t>120 || tick%10<6)) c.drawImage(BERRY, cx(9)-4, cy(11)-5);
+    for(const a of cats){
+      const X = Math.round(a.x)-5, Y = Math.round(a.y)-5 + (a.st==='pen' && tick%40<20 ? 1 : 0);
+      if(a.st==='eyes') c.drawImage(EYES, X, Y+1);
+      else if(a.scared) c.drawImage(fright<120 && tick%16<8 ? SC2 : SC1, X, Y);
+      else c.drawImage(CSPR[a.i], X, Y);
+    }
+    if(dead){ if(dead>20){ const k = (80-dead)/60, s = Math.max(0, 11*(1-k)); c.save(); c.translate(Math.round(pl.x), Math.round(pl.y)); c.rotate(k*9); c.drawImage(M1, -s/2, -s/2, s, s); c.restore(); } }
+    else c.drawImage(MS[(pl.dx || pl.dy) && tick%14<7 ? 1 : 0][pl.face], Math.round(pl.x)-5, Math.round(pl.y)-5);
+    P.draw(c);
+  };
+  return g;
+}
+
+const MAKE = {snake, bricks, blasters, hopper, chase};
+const NAMES = {snake:'Snake', bricks:'Brick Breaker', blasters:'Space Blasters', hopper:'Road Hopper', chase:'Cheese Chase'};
 
 /* ---------------- shell: overlay, input, loop ---------------- */
 const CSS = `
@@ -579,7 +712,7 @@ const CSS = `
 .g-panel{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(11,13,28,.78);padding:20px}
 .g-panel.on{display:flex}
 .g-card{background:#fff;color:#231c4f;border-radius:22px;padding:22px 20px;max-width:340px;width:100%;text-align:center;line-height:1.3}
-.g-card h2{margin:0 0 6px;font-size:26px;font-weight:700}
+#ep-game .g-card h2{margin:0 0 6px;font-size:26px;font-weight:700;color:#231c4f}
 .g-card p{margin:0 0 14px;color:#6a6391;font-size:16px}
 .g-card .big{font-size:54px;font-weight:700;line-height:1;margin:4px 0 6px}
 .g-card button{display:block;width:100%;min-height:48px;border-radius:999px;font-weight:600;font-size:17px;margin-top:8px;background:#231c4f;color:#fff}
@@ -612,7 +745,7 @@ const CSS = `
 .g-info{font-size:clamp(12px,1.8vmin,17px)}
 .g-msg{font-size:clamp(24px,4.4vmin,44px)}
 .g-card{max-width:min(440px,92%);padding:clamp(20px,3.4vmin,34px) clamp(18px,3vmin,30px)}
-.g-card h2{font-size:clamp(24px,3.8vmin,36px)}
+#ep-game .g-card h2{font-size:clamp(24px,3.8vmin,36px)}
 .g-card p{font-size:clamp(15px,2.3vmin,20px)}
 .g-card .big{font-size:clamp(50px,8vmin,80px)}
 .g-card button{min-height:clamp(48px,6.4vmin,62px);font-size:clamp(16px,2.4vmin,21px)}
