@@ -279,6 +279,7 @@ body.adult .ticket .note{font-size:13.5px;color:var(--soft);opacity:1;margin-top
 .race b{font-size:26px;font-weight:700}
 .viewbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);color:#fff;border-radius:14px;padding:9px 10px 9px 14px;margin:-4px 0 14px;font-weight:500;font-size:15px;line-height:1.3;box-shadow:0 4px 14px rgba(35,28,79,.25)}
 .viewbar .btn{background:var(--gold);color:var(--ink);flex:none}
+.glog .dot{width:8px;height:8px;border-radius:50%;background:var(--kid);flex:none;align-self:center}
 </style>
 </head>
 <body>
@@ -303,7 +304,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.21';   // bump on every change so Check for update can see it
+const VERSION = '1.22';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -333,6 +334,8 @@ async function firebaseStore(cfg){
   return {
     subMain(cb,err){ fs.onSnapshot(mainRef, s => cb(s.exists()? s.data() : null), err); },
     subLog(kid,cb,err){ fs.onSnapshot(fs.query(logCol(kid), fs.orderBy('ts','desc'), fs.limit(300)), s => cb(s.docs.map(d => ({id:d.id, ...d.data()}))), err); },
+    subGames(kid,cb){ fs.onSnapshot(fs.query(fs.collection(db,'family','main','games_'+kid), fs.orderBy('ts','desc'), fs.limit(60)), s => cb(s.docs.map(d => ({id:d.id, ...d.data()}))), () => {}); },
+    addGame(kid, entry){ return fs.addDoc(fs.collection(db,'family','main','games_'+kid), entry); },
     seed(obj){ return fs.setDoc(mainRef, obj, {merge:true}); },
     apply({set,addLog,delLog}){
       const b = fs.writeBatch(db);
@@ -348,6 +351,7 @@ function localStore(){
   const KEY='ep_local';
   let data; try{ data = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
   data = data || {main:null, logs:{emmie:[],dawson:[]}};
+  data.games = data.games || {emmie:[],dawson:[]};
   const subs = {main:[], emmie:[], dawson:[]};
   const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){} };
   const copy = () => data.main ? JSON.parse(JSON.stringify(data.main)) : null;   // hand out copies, like the live database does
@@ -355,6 +359,8 @@ function localStore(){
   return {
     subMain(cb){ subs.main.push(cb); cb(copy()); },
     subLog(kid,cb){ subs[kid].push(cb); cb([...data.logs[kid]].sort((a,b)=>b.ts-a.ts)); },
+    subGames(kid,cb){ (subs['g_'+kid] = subs['g_'+kid] || []).push(cb); cb([...data.games[kid]].sort((a,b)=>b.ts-a.ts).slice(0,60)); },
+    async addGame(kid, entry){ data.games[kid].push({id:uid(), ...entry}); save(); (subs['g_'+kid]||[]).forEach(f => f([...data.games[kid]].sort((a,b)=>b.ts-a.ts).slice(0,60))); },
     async seed(obj){ data.main = Object.assign(data.main||{}, obj); save(); emit(); },
     async apply({set,addLog,delLog}){
       if(set) for(const path in set){
@@ -374,7 +380,7 @@ function localStore(){
 
 /* ---------- state ---------- */
 let store, main = null, loaded = false, loadError = '';
-const logs = {emmie:[], dawson:[]};
+const logs = {emmie:[], dawson:[]}, gamesLog = {emmie:[], dawson:[]};
 const ui = {mode:'up', kid:null, ptab:'give', ktab:'prizes', setup:false, games:false, viewAs:null};
 const lastBal = {};
 const ls = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} } };
@@ -436,6 +442,18 @@ function awardPrize(mk){
   run(store.apply({set, addLog:added}));
   toast(r.tie ? `${r.winners.map(k => KIDS[k].name).join(' and ')} tied: +${each} each` : `${KIDS[r.winners[0]].name} +${each} for ${monthName(mk)} game champion`);
 }
+function gameLogList(){
+  const rows = Object.keys(KIDS).flatMap(k => gamesLog[k].map(e => ({kid:k, ...e}))).sort((a,b) => b.ts-a.ts).slice(0,40);
+  if(!rows.length) return '<div class="list"><div class="empty">No games played yet. Games show up here once a kid finishes or quits one.</div></div>';
+  const name = id => (GAMES.find(g => g.id===id) || {name:id}).name;
+  return `<div class="list glog">${rows.map(e => {
+    const he = e.kid==='emmie' ? 'her' : 'his', g = GAMES.find(x => x.id===e.game);
+    const st = e.end==='quit' ? 'Left before game over. Not counted.'
+      : e.monthBest ? `Counted. New best this month${g ? `, ${gamePct(g,e.score)} pts` : ''}.`
+      : `Not counted. ${he[0].toUpperCase()+he.slice(1)} best this month was ${(e.prevMonth||0).toLocaleString()}.`;
+    return `<div class="row"><span class="dot k-${e.kid}"></span><span class="grow"><span class="label">${KIDS[e.kid].name}, ${esc(name(e.game))}</span><div class="sub">${when(e.ts)}. ${st}</div></span><span class="pts${e.end==='quit' || !e.monthBest ? ' zero' : ''}">${(e.score||0).toLocaleString()}</span></div>`;
+  }).join('')}</div>`;
+}
 function scoreTable(mk){
   const kids = Object.keys(KIDS);
   return `<div class="list stbl"><div class="row head"><span class="grow">Game</span>${kids.map(k => `<span class="c">${KIDS[k].name}</span>`).join('')}</div>
@@ -465,11 +483,13 @@ function playGame(game, test){
     spend: dt => { pending = Math.min(pending+dt, Math.max(0,bank())); if(pending>=15) flush(); },
     flush, best,
     onScore: sc => {
-      const set = {}, mk = monthKey();
-      if(sc > best()) set[`scores.${game}.${kid}`] = sc;
-      if(sc > monthBest(mk, game, kid)) set[`monthly.${mk}.${game}.${kid}`] = sc;
+      const set = {}, mk = monthKey(), prevMonth = monthBest(mk, game, kid), prevAll = best();
+      if(sc > prevAll) set[`scores.${game}.${kid}`] = sc;
+      if(sc > prevMonth) set[`monthly.${mk}.${game}.${kid}`] = sc;
       if(Object.keys(set).length) run(store.apply({set}));
+      run(store.addGame(kid, {game, score:sc, ts:Date.now(), end:'over', mk, prevMonth, monthBest:sc>prevMonth, allBest:sc>prevAll}));
     },
+    onQuit: sc => run(store.addGame(kid, {game, score:sc, ts:Date.now(), end:'quit', mk:monthKey(), prevMonth:monthBest(monthKey(), game, kid)})),
     onClose: () => render()
   })).catch(() => toast('Couldn\u2019t load the games. Check the connection and try again.'));
 }
@@ -905,6 +925,8 @@ function parentView(){
       <h2>${monthName(mk)} high scores</h2>
       <p class="soft hint">Each game\u2019s best this month earns game points (pts): its percent of par, up to ${PCT_CAP}. The game points are added. Highest total at month end wins ${PRIZE_PTS} points; a tie splits it.${r ? ` ${r.tie ? 'Tied right now.' : `${KIDS[r.winners[0]].name} leads.`}` : ''}</p>
       ${scoreTable(mk)}
+      <h2>Game log</h2><p class="soft hint">Every game the kids play. Only finished games (out of lives) count, and only a kid\u2019s best score in each game each month goes toward the total.</p>
+      ${gameLogList()}
       <h2>All-time best</h2><div class="list">${GAMES.map(g => `<div class="row"><span class="grow label">${g.name}</span><span class="sub">${esc(scoreLine(g.id))}</span></div>`).join('')}</div>
       ${past.length ? `<h2>Past champions</h2><div class="list">${past.map(m => { const pr = main.prizes[m]; return `<div class="row"><span class="grow label">${monthName(m)}</span><span class="sub">${pr.winners.map(k => KIDS[k].name).join(' and ')}, +${pr.each}${pr.winners.length>1?' each':''}</span></div>`; }).join('')}</div>` : ''}
       <h2>Test a game</h2><p class="soft hint">Test mode has no timer and doesn\u2019t save scores.</p>
@@ -1031,6 +1053,7 @@ document.addEventListener('click', e => {
     knownAsks = new Set(Object.keys(asks));
   }, fail);
   for(const k in KIDS) store.subLog(k, rows => { logs[k] = rows; logsLoaded[k] = true; render(); checkNews(k); }, fail);
+  for(const k in KIDS) store.subGames(k, rows => { gamesLog[k] = rows; if(ui.games) render(); });
 })();
 </script>
 </body>

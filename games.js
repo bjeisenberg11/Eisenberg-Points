@@ -820,6 +820,7 @@ function open(opts){
     hud();
   };
   const close = silent => { if(closed) return; closed = true; auRest(); cancelAnimationFrame(raf); clearTimeout(msgT); if(!opts.test) opts.flush();
+    if(!opts.test && opts.onQuit && g && (state==='play' || state==='pause') && g.score>0) opts.onQuit(g.score);
     window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', fit); document.removeEventListener('visibilitychange', vis); if(ro) ro.disconnect();
     root.remove(); current = null; if(!silent && opts.onClose) opts.onClose(); };
 
