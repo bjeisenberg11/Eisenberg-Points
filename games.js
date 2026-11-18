@@ -183,7 +183,7 @@ function bricks(fx){
   };
   const CAPCOL = {W:'#4cc9f0', M:'#ff7eb6', S:'#59c36a', L:'#ff5a5f'}, CAPNAME = {W:'Wide paddle', M:'Multi-ball', S:'Slow ball', L:'Extra life'};
   let px = W/2, balls = [], list = [], caps = [], stage = 1, kind = 'static', stuck = true, hits = 0, wide = 0, slow = 0, shrunk = false, scroll = 0, drop = 0, dropT = 0, bonusT = 0, tick = 0;
-  const g = {score:0, lives:3, over:false, pad:'lrfire', fireLabel:'Launch', info:'Stage 1', hint:'Slide your finger or use the arrows to move the paddle. Tap Launch to start the ball. Catch the falling capsules for power-ups.'};
+  const g = {score:0, lives:3, over:false, pad:'lrfire', fireLabel:'Launch', info:'Stage 1', hint:'Drag your finger anywhere on the screen to move the paddle. Tap to launch the ball. Catch the falling capsules for power-ups.'};
   const P = Parts();
   const pw = () => (shrunk ? 26 : 40) + (wide ? 18 : 0);
   const bx = b => { let x = b.c*BW + (kind==='scroll' ? scroll*(b.r%2 ? 1 : -1) : 0); x = ((x % FW) + FW) % FW; return X0 + x; };
@@ -198,6 +198,7 @@ function bricks(fx){
     g.info = kind==='bonus' ? 'Bonus stage' : 'Stage '+stage; serve();
   }
   load();
+  g.ctrlX = () => px;
   g._dbg = n => { if(n==='win') list.forEach(b => b.alive = false); else { stage = n; load(); } };
   function next(msg){ stage++; SFX.level(); fx.msg(msg); load(); }
   function hitBrick(b, ball){
@@ -311,7 +312,7 @@ function blasters(fx){
   const BUNK = ['..#######..','.#########.','###########','###########','###########','###.....###','##.......##','##.......##'];
   const stars = Array.from({length:46}, () => ({x:rnd(W), y:rnd(H-20), p:rnd(90)}));
   let al, ox, oy, dir, stepT = 0, note = 0, frame = 0, wave = 1, px = W/2, shots = [], bombs = [], bunk = [], booms = [], ufo = null, ufoT = 0, hurt = 0, rapid = 0, cap = null, cool = 0, bombT = 0, extra = false, tick = 0;
-  const g = {score:0, lives:3, over:false, pad:'lrfire', fireLabel:'Fire', info:'Wave 1', hint:'Move with the arrows or slide your finger, and tap Fire to shoot. Hide behind the shields. Hit the red saucer for bonus points and a power-up.'};
+  const g = {score:0, lives:3, over:false, pad:'lrfire', fireLabel:'Fire', info:'Wave 1', hint:'Drag your finger anywhere on the screen to move. Your ship fires on its own while you drag. You can also use the arrows and hold Fire. Hide behind the shields, and hit the red saucer for a power-up.'};
   const P = Parts(), PY = 288;
   function spawn(){
     al = []; for(let r=0;r<5;r++) for(let c=0;c<11;c++) al.push({c, r, alive:true});
@@ -320,6 +321,7 @@ function blasters(fx){
     g.info = 'Wave '+wave;
   }
   spawn();
+  g.ctrlX = () => px; g.autoFire = true;
   g._dbg = k => { if(k==='ufo') ufoT = 1; if(k==='clear') al.forEach((a,i) => { if(i) a.alive = false; }); if(k==='all') al.forEach(a => a.alive = false); if(k==='cap') cap = {x:px, y:200}; };
   const ax = a => ox + a.c*16, ay = a => oy + a.r*14;
   function erode(x, y, rad){
@@ -591,7 +593,7 @@ function chase(fx){
       if(!w(0,-1)) m.fillRect(x,y,T,2); if(!w(0,1)) m.fillRect(x,y+T-2,T,2); if(!w(-1,0)) m.fillRect(x,y,2,T); if(!w(1,0)) m.fillRect(x+T-2,y,2,T);
     } })();
   let dots, left, pl, cats, level = 1, fright = 0, chain = 0, mode = 'scatter', modeT = 0, dead = 0, wait = 0, bonus = null, eaten = 0, tick = 0, want = null, extra = false, munch = 0;
-  const g = {score:0, lives:3, over:false, pad:'dpad', info:'Level 1', hint:'Swipe or use the arrows to steer the mouse. Eat every crumb. Grab a big cheese to scare the cats, then chase them for bonus points.'};
+  const g = {score:0, lives:3, over:false, pad:'dpad', info:'Level 1', hint:'Swipe anywhere on the screen to steer, or keep your thumb on the arrow pad and slide it. You can turn early: the mouse turns at the next corner. Eat every crumb, and grab a big cheese to chase the cats.'};
   const P = Parts();
   function fill(){ dots = MAP.map(r => [...r].map(ch => ch==='.' || ch==='o' ? ch : '')); left = 150; eaten = 0; bonus = null; }
   function place(){
@@ -790,7 +792,7 @@ function open(opts){
   muteBtn.onclick = () => { AU.muted = !AU.muted; try{ localStorage.setItem('ep_mute', AU.muted ? '1' : '0'); }catch(e){} if(AU.muted) auRest(); else { auInit(); tone(660, .08, 'square', .05); } paintMute(); };
 
   const fit = () => { const r = stage.getBoundingClientRect(); let sc = Math.max(0.5, Math.min((r.width-12)/W, (r.height-8)/H)); const whole = Math.floor(sc); if(whole >= 2 && sc - whole < sc*.08) sc = whole; /* crisp whole-pixel scale when it costs little size */ cv.style.width = Math.round(W*sc)+'px'; cv.style.height = Math.round(H*sc)+'px'; };
-  const fresh = () => { g = MAKE[opts.game](fx); inp.tap.length = 0; inp.held = {}; inp.px = null; acc = 0; lastHud = '';
+  const fresh = () => { g = MAKE[opts.game](fx); inp.tap.length = 0; inp.held = {}; inp.px = null; acc = 0; lastHud = ''; drag = null; padId = null; fireId = null; root.querySelectorAll('.dn').forEach(x => x.classList.remove('dn'));
     q('.g-dpad').className = 'g-dpad' + (g.pad==='lrfire' ? ' lr' : ''); q('.g-dpad .u').hidden = q('.g-dpad .d').hidden = g.pad==='lrfire';
     q('.g-fire').style.display = g.pad==='lrfire' ? '' : 'none'; q('.g-fire').textContent = g.fireLabel || 'Fire'; fit(); };
   let shownAt = 0;
@@ -844,19 +846,48 @@ function open(opts){
   const kd = e => { const k = KEYS[e.key]; if(!k) return; e.preventDefault(); if(!inp.held[k]) inp.tap.push(k); inp.held[k] = true; };
   const ku = e => { const k = KEYS[e.key]; if(k) inp.held[k] = false; };
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
-  root.querySelectorAll('[data-k]').forEach(b => {
-    const k = b.dataset.k, up = () => { inp.held[k] = false; b.classList.remove('dn'); };
-    b.addEventListener('pointerdown', e => { e.preventDefault(); inp.held[k] = true; inp.tap.push(k); b.classList.add('dn'); });
-    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+  /* Arrow pad works like a thumb pad: press anywhere on it and slide to change direction without lifting.
+     Each pad tracks its own finger, so moving and firing at the same time works. */
+  const dpad = q('.g-dpad'), fireB = q('.g-fire');
+  const setDir = d => { for(const k of ['up','down','left','right']){ const on = k===d; if(on && !inp.held[k]) inp.tap.push(k); inp.held[k] = on; const bt = dpad.querySelector(`[data-k=${k}]`); if(bt) bt.classList.toggle('dn', on); } };
+  const padDir = e => { const r = dpad.getBoundingClientRect(), x = e.clientX-(r.left+r.width/2), y = e.clientY-(r.top+r.height/2);
+    if(g.pad==='lrfire') return Math.abs(x) < 6 ? null : x<0 ? 'left' : 'right';
+    if(Math.hypot(x,y) < 10) return null;
+    return Math.abs(x) > Math.abs(y) ? (x<0 ? 'left' : 'right') : (y<0 ? 'up' : 'down'); };
+  let padId = null;
+  dpad.addEventListener('pointerdown', e => { e.preventDefault(); padId = e.pointerId; try{ dpad.setPointerCapture(e.pointerId); }catch(err){} const d = padDir(e); if(d) setDir(d); });
+  dpad.addEventListener('pointermove', e => { if(e.pointerId!==padId) return; const d = padDir(e); if(d && !inp.held[d]) setDir(d); });
+  const padUp = e => { if(e.pointerId!==padId) return; padId = null; setDir(null); };
+  dpad.addEventListener('pointerup', padUp); dpad.addEventListener('pointercancel', padUp);
+  let fireId = null;
+  fireB.addEventListener('pointerdown', e => { e.preventDefault(); fireId = e.pointerId; try{ fireB.setPointerCapture(e.pointerId); }catch(err){} inp.held.fire = true; inp.tap.push('fire'); fireB.classList.add('dn'); });
+  const fireUp = e => { if(e.pointerId!==fireId) return; fireId = null; fireB.classList.remove('dn'); inp.held.fire = !!(drag && g.autoFire); };
+  fireB.addEventListener('pointerup', fireUp); fireB.addEventListener('pointercancel', fireUp);
+
+  /* Touching anywhere else on the game screen (game, side space, below it):
+     - Brick Breaker, Space Blasters: drag left/right to move. The ship moves with your finger from where it is,
+       so your finger never has to cover it. In Space Blasters the ship keeps firing while you drag.
+     - Maze and hopping games: swipe in any direction to turn or hop. */
+  let drag = null;
+  root.addEventListener('pointerdown', e => {
+    if(drag || e.target.closest('.g-bar,.g-dpad,.g-fire,.g-panel')) return;
+    e.preventDefault();
+    drag = {id:e.pointerId, x:e.clientX, y:e.clientY, moved:false, onCanvas:!!e.target.closest('canvas')};
+    if(g.pad==='lrfire'){ drag.sx = g.ctrlX ? g.ctrlX() : W/2; inp.px = drag.sx; inp.tap.push('fire'); if(g.autoFire) inp.held.fire = true; }
   });
-  let sw = null;
-  const lx = e => { const r = cv.getBoundingClientRect(); return (e.clientX-r.left)/r.width*W; };
-  cv.addEventListener('pointerdown', e => { e.preventDefault(); sw = {x:e.clientX, y:e.clientY, moved:false}; if(g.pad==='lrfire'){ inp.px = lx(e); inp.tap.push('fire'); } });
-  cv.addEventListener('pointermove', e => { if(!sw) return; if(g.pad==='lrfire'){ inp.px = lx(e); return; }
-    const dx = e.clientX-sw.x, dy = e.clientY-sw.y;
-    if(Math.max(Math.abs(dx),Math.abs(dy)) > 22){ inp.tap.push(Math.abs(dx)>Math.abs(dy) ? (dx>0?'right':'left') : (dy>0?'down':'up')); sw = {x:e.clientX, y:e.clientY, moved:true}; } });
-  const pend = () => { if(sw && !sw.moved && opts.game==='hopper') inp.tap.push('up'); sw = null; inp.px = null; };
-  cv.addEventListener('pointerup', pend); cv.addEventListener('pointercancel', () => { sw = null; inp.px = null; });
+  root.addEventListener('pointermove', e => {
+    if(!drag || e.pointerId!==drag.id) return;
+    const dx = e.clientX-drag.x, dy = e.clientY-drag.y;
+    if(g.pad==='lrfire'){ const r = cv.getBoundingClientRect(); inp.px = clamp(drag.sx + dx*(W/r.width)*1.25, 0, W); if(Math.abs(dx) > 4) drag.moved = true; return; }
+    if(Math.max(Math.abs(dx),Math.abs(dy)) > 14){ inp.tap.push(Math.abs(dx)>Math.abs(dy) ? (dx>0?'right':'left') : (dy>0?'down':'up')); drag.x = e.clientX; drag.y = e.clientY; drag.moved = true; }
+  });
+  const dragEnd = (e, cancel) => {
+    if(!drag || e.pointerId!==drag.id) return;
+    if(!cancel && !drag.moved && drag.onCanvas && opts.game==='hopper') inp.tap.push('up');
+    if(g.pad==='lrfire'){ inp.px = null; if(g.autoFire) inp.held.fire = fireId!==null; }
+    drag = null;
+  };
+  root.addEventListener('pointerup', e => dragEnd(e, false)); root.addEventListener('pointercancel', e => dragEnd(e, true));
   root.addEventListener('contextmenu', e => e.preventDefault());
   root.addEventListener('touchstart', e => { if(e.touches.length > 1) e.preventDefault(); }, {passive:false});
   root.addEventListener('dblclick', e => e.preventDefault());
