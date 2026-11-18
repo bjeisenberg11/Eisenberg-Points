@@ -709,9 +709,10 @@ const CSS = `
 .g-info{position:absolute;left:8px;top:6px;font-size:13px;line-height:1.2;font-weight:600;color:#fff;background:rgba(11,13,28,.6);border-radius:6px;padding:2px 7px;pointer-events:none}
 .g-msg{position:absolute;left:0;right:0;top:38%;text-align:center;font-size:26px;line-height:1.2;font-weight:700;color:#ffc93c;text-shadow:0 2px 0 #231c4f,0 0 12px rgba(0,0,0,.8);pointer-events:none;opacity:0;transition:opacity .25s}
 .g-msg.on{opacity:1}
-.g-panel{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(11,13,28,.78);padding:20px}
+.g-panel{position:absolute;inset:0;z-index:3;display:none;align-items:safe center;justify-content:center;background:rgba(11,13,28,.82);padding:calc(env(safe-area-inset-top) + 66px) 16px calc(env(safe-area-inset-bottom) + 16px);overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.g-bar{position:relative;z-index:4}
 .g-panel.on{display:flex}
-.g-card{background:#fff;color:#231c4f;border-radius:22px;padding:22px 20px;max-width:340px;width:100%;text-align:center;line-height:1.3}
+.g-card{background:#fff;color:#231c4f;border-radius:22px;padding:22px 20px;max-width:340px;width:100%;text-align:center;line-height:1.3;margin:auto 0}
 #ep-game .g-card h2{margin:0 0 6px;font-size:26px;font-weight:700;color:#231c4f}
 .g-card p{margin:0 0 14px;color:#6a6391;font-size:16px}
 .g-card .big{font-size:54px;font-weight:700;line-height:1;margin:4px 0 6px}
@@ -772,7 +773,7 @@ function open(opts){
   root.innerHTML = `<div class="g-bar"><button class="g-x" type="button" aria-label="Close game">✕</button><div class="g-name"></div>
       <div class="g-stat"><span class="g-lives"></span><span class="g-score">0</span><span class="g-time"></span></div>
       <button class="g-mute" type="button"></button><button class="g-pause" type="button" aria-label="Pause">❚❚</button></div>
-    <div class="g-stage"><div class="g-wrap"><canvas width="${W}" height="${H}"></canvas><div class="g-info"></div><div class="g-msg"></div></div><div class="g-panel"></div></div>
+    <div class="g-stage"><div class="g-wrap"><canvas width="${W}" height="${H}"></canvas><div class="g-info"></div><div class="g-msg"></div></div></div><div class="g-panel"></div>
     <div class="g-pad"><div class="g-dpad"><button class="u" data-k="up" type="button" aria-label="Up">▲</button><button class="l" data-k="left" type="button" aria-label="Left">◀</button><button class="d" data-k="down" type="button" aria-label="Down">▼</button><button class="r" data-k="right" type="button" aria-label="Right">▶</button></div>
       <button class="g-fire" data-k="fire" type="button">Fire</button></div>`;
   document.body.appendChild(root);
@@ -792,7 +793,8 @@ function open(opts){
   const fresh = () => { g = MAKE[opts.game](fx); inp.tap.length = 0; inp.held = {}; inp.px = null; acc = 0; lastHud = '';
     q('.g-dpad').className = 'g-dpad' + (g.pad==='lrfire' ? ' lr' : ''); q('.g-dpad .u').hidden = q('.g-dpad .d').hidden = g.pad==='lrfire';
     q('.g-fire').style.display = g.pad==='lrfire' ? '' : 'none'; q('.g-fire').textContent = g.fireLabel || 'Fire'; fit(); };
-  const show = html => { panel.innerHTML = `<div class="g-card">${html}</div>`; panel.classList.add('on'); };
+  let shownAt = 0;
+  const show = html => { panel.innerHTML = `<div class="g-card">${html}</div>`; panel.classList.add('on'); panel.scrollTop = 0; shownAt = performance.now(); };
   const hide = () => { panel.classList.remove('on'); panel.innerHTML = ''; };
   const fmt = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
   const hud = () => {
@@ -819,10 +821,23 @@ function open(opts){
     window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', fit); document.removeEventListener('visibilitychange', vis); if(ro) ro.disconnect();
     root.remove(); current = null; if(!silent && opts.onClose) opts.onClose(); };
 
-  panel.addEventListener('click', e => { const a = e.target.dataset && e.target.dataset.a; if(!a) return;
-    if(a==='start' || a==='resume') play(); else if(a==='again'){ ready(); if(left()>0) play(); } else if(a==='quit') close(); });
-  q('.g-x').onclick = () => close();
-  q('.g-pause').onclick = () => pause();
+  const doAct = a => { if(closed) return;
+    if(a==='start' || a==='resume') play(); else if(a==='again'){ ready(); if(left()>0) play(); } else if(a==='quit') close(); };
+  /* Tap = finger down and up on the same button. A finger already on the screen when a card pops up
+     (still steering when the game ends) doesn't count, so a stray tap can't hit Play again by accident. */
+  let down = null, lastTap = 0;
+  root.addEventListener('pointerdown', e => { const b = e.target.closest('[data-a],.g-x,.g-pause'); down = b ? {b, t:performance.now()} : null; }, true);
+  root.addEventListener('pointerup', e => {
+    const b = e.target.closest('[data-a],.g-x,.g-pause'), d = down; down = null;
+    if(!b || !d || d.b!==b) return;
+    if(b.dataset.a && d.t < shownAt) return;
+    lastTap = performance.now(); e.preventDefault();
+    if(b.classList.contains('g-x')) close(); else if(b.classList.contains('g-pause')) pause(); else doAct(b.dataset.a);
+  });
+  root.addEventListener('click', e => {   /* keyboard / assistive-tech fallback; ignored right after a tap */
+    const b = e.target.closest('[data-a],.g-x,.g-pause'); if(!b || performance.now()-lastTap < 700) return;
+    if(b.classList.contains('g-x')) close(); else if(b.classList.contains('g-pause')) pause(); else doAct(b.dataset.a);
+  });
 
   /* input */
   const KEYS = {ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down', ' ':'fire', a:'left', d:'right', w:'up', s:'down'};
@@ -843,6 +858,8 @@ function open(opts){
   const pend = () => { if(sw && !sw.moved && opts.game==='hopper') inp.tap.push('up'); sw = null; inp.px = null; };
   cv.addEventListener('pointerup', pend); cv.addEventListener('pointercancel', () => { sw = null; inp.px = null; });
   root.addEventListener('contextmenu', e => e.preventDefault());
+  root.addEventListener('touchstart', e => { if(e.touches.length > 1) e.preventDefault(); }, {passive:false});
+  root.addEventListener('dblclick', e => e.preventDefault());
   root.addEventListener('pointerdown', () => { if(state==='play' || state==='ready') auInit(); }, true);
   const vis = () => { if(document.hidden) pause(); };
   document.addEventListener('visibilitychange', vis); window.addEventListener('resize', fit);

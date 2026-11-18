@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Eisenberg Points</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Points">
@@ -19,7 +19,7 @@
   --emmie:#D93A77; --dawson:#1677C9;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;touch-action:manipulation}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.4 Fredoka,ui-rounded,"SF Pro Rounded",system-ui,sans-serif;
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 button,input{font:inherit;color:inherit}
@@ -303,7 +303,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.19';   // bump on every change so Check for update can see it
+const VERSION = '1.20';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -1012,6 +1012,9 @@ document.addEventListener('click', e => {
     else if(act==='newpin') pinSheet('create', async h => { await store.apply({set:{pinHash:h}}); ls.set('ep_pin', h); toast('PIN changed. Mom and Dad both need the new one.'); });
   }
 });
+
+/* ---------- no accidental zoom: block pinch zoom (iPhone/iPad ignore the viewport setting for pinch); double-tap zoom is off via touch-action ---------- */
+['gesturestart','gesturechange','gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), {passive:false}));
 
 /* ---------- start ---------- */
 (async function start(){
