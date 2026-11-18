@@ -718,8 +718,8 @@ const CSS = `
 #ep-game .g-card h2{margin:0 0 6px;font-size:26px;font-weight:700;color:#231c4f}
 .g-card p{margin:0 0 14px;color:#6a6391;font-size:16px}
 .g-card .big{font-size:54px;font-weight:700;line-height:1;margin:4px 0 6px}
-.g-card button{display:block;width:100%;min-height:48px;border-radius:999px;font-weight:600;font-size:17px;margin-top:8px;background:#231c4f;color:#fff}
-.g-card button.gold{background:#ffc93c;color:#231c4f}
+#ep-game .g-card button{display:block;width:100%;min-height:48px;border-radius:999px;font-weight:600;font-size:17px;margin-top:8px;background:#231c4f;color:#fff}
+#ep-game .g-card button.gold{background:#ffc93c;color:#231c4f}
 .g-pad{display:flex;justify-content:space-between;align-items:center;padding:10px 18px 14px;gap:16px}
 .g-dpad{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,54px);gap:6px}
 .g-dpad button,.g-fire{background:#22264a;border-radius:14px;font-size:24px;font-weight:700}
@@ -751,7 +751,7 @@ const CSS = `
 #ep-game .g-card h2{font-size:clamp(24px,3.8vmin,36px)}
 .g-card p{font-size:clamp(15px,2.3vmin,20px)}
 .g-card .big{font-size:clamp(50px,8vmin,80px)}
-.g-card button{min-height:clamp(48px,6.4vmin,62px);font-size:clamp(16px,2.4vmin,21px)}
+#ep-game .g-card button{min-height:clamp(48px,6.4vmin,62px);font-size:clamp(16px,2.4vmin,21px)}
 
 /* ---- sideways screens: d-pad on the left, Fire on the right, game in the middle ---- */
 @media (orientation:landscape) and (min-aspect-ratio:6/5){
