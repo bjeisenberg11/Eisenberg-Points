@@ -280,6 +280,10 @@ body.adult .ticket .note{font-size:13.5px;color:var(--soft);opacity:1;margin-top
 .viewbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);color:#fff;border-radius:14px;padding:9px 10px 9px 14px;margin:-4px 0 14px;font-weight:500;font-size:15px;line-height:1.3;box-shadow:0 4px 14px rgba(35,28,79,.25)}
 .viewbar .btn{background:var(--gold);color:var(--ink);flex:none}
 .glog .dot{width:8px;height:8px;border-radius:50%;background:var(--kid);flex:none;align-self:center}
+.cashcard{background:#fff;border-radius:18px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cashcard b{display:block;font-size:18px;font-weight:600}
+.cashcard span{color:var(--soft);font-size:15px}
+.cashcalc{font-weight:600;font-size:18px;margin:-4px 0 10px}
 </style>
 </head>
 <body>
@@ -304,7 +308,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.23';   // bump on every change so Check for update can see it
+const VERSION = '1.24';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -581,6 +585,27 @@ function give(sel, pts, label, emoji, b, asked){
   toast(`${whoName(sel)} ${signed(pts)} for ${label}${bonusNote}${gm?`, plus ${gm} min game time`:''}`, () => run(store.apply({set:back, delLog:added.map(a => ({kid:a.kid,id:a.id}))})));
 }
 function removeEntry(kid,id,pts,gsec){ const set = {['balances.'+kid]:INC(-pts)}; if(gsec) set['gameTime.'+kid] = INC(-gsec); run(store.apply({ set, delLog:{kid,id} })); }
+const CASH_RATE = 5;   // points per $1
+const cashMax = kid => Math.floor(Math.max(0, available(kid)) / CASH_RATE);
+function cashSheet(kid){
+  const max = cashMax(kid);
+  const f = openSheet(`
+    <h3>Cash out</h3>
+    <p class="soft">${CASH_RATE} points = $1. You have ${Math.max(0,available(kid))} points to use, so you can ask for up to $${max}.</p>
+    <label class="field"><span>How many dollars?</span><input name="d" type="number" inputmode="numeric" min="1" max="${max}" step="1" placeholder="0" autofocus></label>
+    <p class="cashcalc">That\u2019s 0 points.</p>
+    <div class="msg"></div>
+    <div class="acts2"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn gold">Ask Mom or Dad</button></div>`,
+    f => {
+      const raw = +f.d.value, n = Math.ceil(raw), msg = f.querySelector('.msg');
+      if(!(raw > 0)){ msg.textContent = 'Enter how many dollars.'; return false; }
+      if(n > cashMax(kid)){ msg.textContent = `You can ask for up to $${cashMax(kid)} right now.`; return false; }
+      run(store.apply({ set:{['requests.'+uid()]:{kid, label:`$${n} cash-out`, emoji:'💵', cost:n*CASH_RATE, cash:n, ts:Date.now()}} }));
+      toast(`Asked for $${n}. Mom or Dad will get back to you.`);
+    });
+  const calc = () => { const raw = +f.d.value, n = raw > 0 ? Math.ceil(raw) : 0; f.querySelector('.cashcalc').textContent = n && n!==raw ? `Rounds up to $${n}. That\u2019s ${n*CASH_RATE} points.` : `That\u2019s ${n*CASH_RATE} points.`; };
+  f.d.addEventListener('input', () => { calc(); f.querySelector('.msg').textContent = ''; });
+}
 function requestPrize(kid, rid){
   const r = main.rewards[rid]; if(!r || available(kid) < r.cost) return;
   run(store.apply({ set:{['requests.'+uid()]:{kid,label:r.label,emoji:r.emoji,cost:r.cost,ts:Date.now()}} }));
@@ -835,7 +860,10 @@ function kidView(kid){
   let body = '';
   if(ui.ktab==='prizes'){
     const rewards = sorted(main && main.rewards).sort((a,b)=>a.cost-b.cost);
-    body = `<h2>Prizes</h2>${rewards.length?'<p class="soft">Tap a star to pick the prize you’re saving for.</p>':''}<div class="list">${rewards.length ? rewards.map(r => {
+    const cm = cashMax(kid);
+    body = `<h2>Cash out</h2><div class="cashcard"><div><b>${CASH_RATE} points = $1</b><span>${cm ? `You can ask for up to $${cm}.` : `Save ${CASH_RATE - Math.max(0,available(kid)) % CASH_RATE} more points to cash out $1.`}</span></div>
+      ${cm ? '<button class="btn gold small" data-act="cash">Cash out</button>' : ''}</div>
+      <h2>Prizes</h2>${rewards.length?'<p class="soft">Tap a star to pick the prize you’re saving for.</p>':''}<div class="list">${rewards.length ? rewards.map(r => {
       const can = avail >= r.cost, pct = Math.max(0, Math.min(100, Math.round(avail/r.cost*100))), mine = goalId===r.id;
       return `<div class="row"><span class="emo">${esc(r.emoji)}</span><div class="grow"><div class="label">${esc(r.label)}</div>
         <div class="sub">${r.cost} points${can?'':`, ${r.cost-Math.max(avail,0)} more to go`}</div>${can?'':`<div class="bar"><i style="width:${pct}%"></i></div>`}</div>
@@ -873,7 +901,7 @@ function kidView(kid){
   return `<div class="k-${kid}">${banner()}${ticket(kid, {title:KIDS[kid].name+'’s points', notes, pct})}
     ${petitionsFor(kid).map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${esc(q.label)} <b>${signed(q.pts)}</b></div><div>You asked for points. Waiting for Mom or Dad.</div>
         <div class="acts"><button class="btn ghost small" data-act="unpetition" data-id="${q.id}">Never mind</button></div></div>`).join('')}
-    ${pend.map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${esc(q.label)}</div><div>You asked for this prize. Waiting for Mom or Dad to say yes.</div>
+    ${pend.map(q => `<div class="ask"><div class="label">${esc(q.emoji)} ${esc(q.label)}</div><div>${q.cash ? `You asked to cash out ${q.cost} points.` : 'You asked for this prize.'} Waiting for Mom or Dad to say yes.</div>
         <div class="acts"><button class="btn ghost small" data-act="cancel" data-id="${q.id}">Never mind</button></div></div>`).join('')}
     ${tabs('ktab', [['prizes','Prizes'],['earn','Earn'],['games','Games'],['history','History']])}${body}
     <div class="foot"><button class="link" data-act="switch">Not ${KIDS[kid].name}?</button></div></div>`;
@@ -1000,7 +1028,7 @@ document.addEventListener('click', e => {
   else if(ui.viewAs && isParent(r)){   // previewing a kid's screen: tabs and games work, nothing gets saved
     if(act==='switch'){ ui.viewAs = null; render(); window.scrollTo(0,0); }
     else if(act==='play') playGame(id, true);
-    else if(['request','cancel','unpetition','petition','goal'].includes(act)) toast(`Preview only. Nothing was sent or saved for ${KIDS[ui.viewAs].name}.`);
+    else if(['request','cancel','unpetition','petition','goal','cash'].includes(act)) toast(`Preview only. Nothing was sent or saved for ${KIDS[ui.viewAs].name}.`);
   }
   else if(act==='switch'){
     const out = () => { ls.set('ep_role', null); ui.setup = false; ui.games = false; $('#toast').className = ''; render(); };
@@ -1008,6 +1036,7 @@ document.addEventListener('click', e => {
   }
   else if(KIDS[r]){
     if(act==='request') requestPrize(r, id);
+    else if(act==='cash') cashSheet(r);
     else if(act==='cancel') cancelRequest(id);
     else if(act==='play'){ if(gameSecs(r)>0) playGame(id, false); }
     else if(act==='unpetition') cancelPetition(id);
@@ -1043,9 +1072,16 @@ document.addEventListener('click', e => {
   try{ store = FIREBASE_CONFIG ? await firebaseStore(FIREBASE_CONFIG) : localStore(); }
   catch(e){ loaded = true; loadError = 'Couldn’t reach the sync service. Check the internet connection and reload.'; store = localStore(); }
   const fail = e => { loaded = true; loadError = 'Sync isn’t working: ' + (e && e.code==='permission-denied' ? 'the database rules are blocking this app.' : 'check the internet connection.'); render(); };
-  let knownAsks = null;
+  let knownAsks = null, cashMigrated = false;
   store.subMain(d => {
     main = d; loaded = true; loadError = ''; render();
+    if(d && isParent(role()) && parentOK() && !(d.migr && d.migr.cash1) && !cashMigrated){
+      cashMigrated = true;
+      const set = {'migr.cash1': true}, gone = [];
+      for(const [id,r] of Object.entries(d.rewards || {})) if(/^\$\s?\d+(\.\d+)?(\s+amazon(\s+purchase)?)?$/i.test((r.label||'').trim())){ set['rewards.'+id] = DEL; gone.push(id); }
+      for(const [k,gid] of Object.entries(d.goals || {})) if(gone.includes(gid)) set['goals.'+k] = DEL;
+      run(store.apply({set}));
+    }
     const asks = Object.assign({}, d && d.requests, d && d.petitions);
     if(knownAsks && isParent(role()) && parentOK()) for(const id in asks) if(!knownAsks.has(id)){
       const q = asks[id]; toast(q.cost!=null ? `${KIDS[q.kid].name} asked for ${q.label}` : `${KIDS[q.kid].name} asked for ${signed(q.pts)}: ${q.label}`);
