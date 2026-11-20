@@ -308,7 +308,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.24';   // bump on every change so Check for update can see it
+const VERSION = '1.25';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -585,13 +585,13 @@ function give(sel, pts, label, emoji, b, asked){
   toast(`${whoName(sel)} ${signed(pts)} for ${label}${bonusNote}${gm?`, plus ${gm} min game time`:''}`, () => run(store.apply({set:back, delLog:added.map(a => ({kid:a.kid,id:a.id}))})));
 }
 function removeEntry(kid,id,pts,gsec){ const set = {['balances.'+kid]:INC(-pts)}; if(gsec) set['gameTime.'+kid] = INC(-gsec); run(store.apply({ set, delLog:{kid,id} })); }
-const CASH_RATE = 5;   // points per $1
-const cashMax = kid => Math.floor(Math.max(0, available(kid)) / CASH_RATE);
+const cashRate = () => Math.max(1, Math.round((main && main.cashRate) || 5));   // points per $1, set in Set up
+const cashMax = kid => Math.floor(Math.max(0, available(kid)) / cashRate());
 function cashSheet(kid){
   const max = cashMax(kid);
   const f = openSheet(`
     <h3>Cash out</h3>
-    <p class="soft">${CASH_RATE} points = $1. You have ${Math.max(0,available(kid))} points to use, so you can ask for up to $${max}.</p>
+    <p class="soft">${cashRate()} points = $1. You have ${Math.max(0,available(kid))} points to use, so you can ask for up to $${max}.</p>
     <label class="field"><span>How many dollars?</span><input name="d" type="number" inputmode="numeric" min="1" max="${max}" step="1" placeholder="0" autofocus></label>
     <p class="cashcalc">That\u2019s 0 points.</p>
     <div class="msg"></div>
@@ -600,11 +600,27 @@ function cashSheet(kid){
       const raw = +f.d.value, n = Math.ceil(raw), msg = f.querySelector('.msg');
       if(!(raw > 0)){ msg.textContent = 'Enter how many dollars.'; return false; }
       if(n > cashMax(kid)){ msg.textContent = `You can ask for up to $${cashMax(kid)} right now.`; return false; }
-      run(store.apply({ set:{['requests.'+uid()]:{kid, label:`$${n} cash-out`, emoji:'💵', cost:n*CASH_RATE, cash:n, ts:Date.now()}} }));
+      run(store.apply({ set:{['requests.'+uid()]:{kid, label:`$${n} cash-out`, emoji:'💵', cost:n*cashRate(), cash:n, ts:Date.now()}} }));
       toast(`Asked for $${n}. Mom or Dad will get back to you.`);
     });
-  const calc = () => { const raw = +f.d.value, n = raw > 0 ? Math.ceil(raw) : 0; f.querySelector('.cashcalc').textContent = n && n!==raw ? `Rounds up to $${n}. That\u2019s ${n*CASH_RATE} points.` : `That\u2019s ${n*CASH_RATE} points.`; };
+  const calc = () => { const raw = +f.d.value, n = raw > 0 ? Math.ceil(raw) : 0; f.querySelector('.cashcalc').textContent = n && n!==raw ? `Rounds up to $${n}. That\u2019s ${n*cashRate()} points.` : `That\u2019s ${n*cashRate()} points.`; };
   f.d.addEventListener('input', () => { calc(); f.querySelector('.msg').textContent = ''; });
+}
+function cashRateSheet(){
+  openSheet(`
+    <h3>Cash-out rate</h3>
+    <p class="soft">How many points a kid trades for $1 when they cash out. Requests already waiting keep the price they were asked at.</p>
+    <label class="field"><span>Points per $1</span><input name="n" type="number" inputmode="numeric" min="1" max="100" value="${cashRate()}" autofocus></label>
+    <p class="cashcalc"></p>
+    <div class="msg"></div>
+    <div class="acts2"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn">Save</button></div>`,
+    f => {
+      const n = Math.round(+f.n.value), msg = f.querySelector('.msg');
+      if(!(n>=1 && n<=100)){ msg.textContent = 'Enter 1 to 100 points.'; return false; }
+      run(store.apply({set:{cashRate:n}})); toast(`Cash-out rate saved: ${n} points = $1`);
+    });
+  const f = document.querySelector('#sheet form'), calc = () => { const n = Math.round(+f.n.value); f.querySelector('.cashcalc').textContent = n>=1 ? `$10 would cost ${n*10} points.` : ''; f.querySelector('.msg').textContent = ''; };
+  f.n.addEventListener('input', calc); calc();
 }
 function requestPrize(kid, rid){
   const r = main.rewards[rid]; if(!r || available(kid) < r.cost) return;
@@ -861,7 +877,7 @@ function kidView(kid){
   if(ui.ktab==='prizes'){
     const rewards = sorted(main && main.rewards).sort((a,b)=>a.cost-b.cost);
     const cm = cashMax(kid);
-    body = `<h2>Cash out</h2><div class="cashcard"><div><b>${CASH_RATE} points = $1</b><span>${cm ? `You can ask for up to $${cm}.` : `Save ${CASH_RATE - Math.max(0,available(kid)) % CASH_RATE} more points to cash out $1.`}</span></div>
+    body = `<h2>Cash out</h2><div class="cashcard"><div><b>${cashRate()} points = $1</b><span>${cm ? `You can ask for up to $${cm}.` : `Save ${cashRate() - Math.max(0,available(kid)) % cashRate()} more points to cash out $1.`}</span></div>
       ${cm ? '<button class="btn gold small" data-act="cash">Cash out</button>' : ''}</div>
       <h2>Prizes</h2>${rewards.length?'<p class="soft">Tap a star to pick the prize you’re saving for.</p>':''}<div class="list">${rewards.length ? rewards.map(r => {
       const can = avail >= r.cost, pct = Math.max(0, Math.min(100, Math.round(avail/r.cost*100))), mine = goalId===r.id;
@@ -936,6 +952,7 @@ function parentView(){
     return `${banner()}<div class="top"><h1>Set up</h1><button class="btn small" data-act="setup" data-id="">Done</button></div>
       <h2>Ways to earn and lose points</h2><p class="soft">Tap one to change it, or to add a streak bonus or game time. Both kids share this list.</p>${edit('behaviors', byPts(sorted(main.behaviors)).sort((a,b)=>(b.pts>0)-(a.pts>0)), x=>signed(x.pts))}
       <h2>Prizes</h2>${edit('rewards', sorted(main.rewards).sort((a,b)=>a.cost-b.cost), x=>x.cost)}
+      <h2>Cash out</h2><div class="list"><button class="row" data-act="cashrate"><span class="grow"><span class="label">Cash-out rate</span><div class="sub">Kids can trade points for dollars. Tap to change.</div></span><span class="pts">${cashRate()} pts = $1</span></button></div>
       <h2>This device</h2><div class="list">
         <button class="row" data-act="newpin"><span class="emo">🔑</span><span class="grow label">Change the parent PIN</span></button>
         <button class="row" data-act="switch"><span class="emo">🔁</span><span class="grow"><span class="label">Use this device as someone else</span><div class="sub">Signed in as ${PARENTS[role()].name}</div></span></button></div>`;
@@ -1060,6 +1077,7 @@ document.addEventListener('click', e => {
     else if(act==='decline') answer(id, false);
     else if(act==='edit') itemSheet(kind, id);
     else if(act==='add') itemSheet(kind);
+    else if(act==='cashrate') cashRateSheet();
     else if(act==='newpin') pinSheet('create', async h => { await store.apply({set:{pinHash:h}}); ls.set('ep_pin', h); toast('PIN changed. Mom and Dad both need the new one.'); });
   }
 });

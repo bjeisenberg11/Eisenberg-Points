@@ -436,6 +436,8 @@ function hopper(fx){
   const under = (L, i) => { const d = diving(L,i); return d>=160 && d<230; };
   function home(){ p = {x:110, y:START*T}; far = START; time = TMAX; face = 'up'; anim = 0; from = null; }
   build(); home();
+  g.oneSwipe = true;   /* one swipe = one hop, however long the swipe */
+  g._pos = () => ({x:p.x, row:p.y/T});
   g._dbg = k => { if(k==='fill') filled = [1,1,1,1,0]; if(k==='pos'){ p.x = BAYS[4]-10; p.y = 2*T; } if(k==='snap') snap = {i:0, t:230}; if(k==='fly') fly = {i:4, t:260}; if(typeof k==='number'){ level = k; g.info = 'Level '+k; build(); } };
   function die(kind){ g.lives--; dead = 50; deadKind = kind; kind==='water' ? SFX.splash() : SFX.squash(); if(kind!=='water') fx.shake(5); P.burst(p.x+10, p.y+10, kind==='water' ? '#9fd3ff' : '#ffd84d', 16, 2); }
   g.update = inp => {
@@ -455,7 +457,6 @@ function hopper(fx){
       if(k==='up') p.y -= T; if(k==='down') p.y = Math.min(START*T, p.y+T);
       if(k==='left') p.x -= T; if(k==='right') p.x += T;
       const row = p.y/T;
-      if(row>=7) p.x = Math.round((p.x-10)/T)*T+10;
       p.x = clamp(p.x, row>=7 ? 10 : -4, row>=7 ? W-T-10 : W-T+4);
       if(row < far){ g.score += 10; far = row; }
       if(row===HOME){
@@ -471,7 +472,7 @@ function hopper(fx){
     if(L && row>=8){ for(let i=0;i<L.n;i++){ const x = itemX(L,i); if(p.x+4 < x+L.w && p.x+T-4 > x) return die('road'); } }
     else if(L){
       const mid = p.x+T/2; let on = false;
-      for(let i=0;i<L.n;i++){ const x = itemX(L,i); if(mid>x+1 && mid<x+L.w-1 && !under(L,i)){ on = true; break; } }
+      for(let i=0;i<L.n;i++){ const x = itemX(L,i); if(mid>x-3 && mid<x+L.w+3 && !under(L,i)){ on = true; break; } }   /* small grace so a landing that looks on the edge counts */
       if(!on) return die('water');
       p.x += L.v; if(p.x < -8 || p.x > W-T+8) return die('water');
     }
@@ -880,6 +881,7 @@ function open(opts){
     if(!drag || e.pointerId!==drag.id) return;
     const dx = e.clientX-drag.x, dy = e.clientY-drag.y;
     if(g.pad==='lrfire'){ const r = cv.getBoundingClientRect(); inp.px = clamp(drag.sx + dx*(W/r.width)*1.25, 0, W); if(Math.abs(dx) > 4) drag.moved = true; return; }
+    if(g.oneSwipe && drag.moved) return;
     if(Math.max(Math.abs(dx),Math.abs(dy)) > 14){ inp.tap.push(Math.abs(dx)>Math.abs(dy) ? (dx>0?'right':'left') : (dy>0?'down':'up')); drag.x = e.clientX; drag.y = e.clientY; drag.moved = true; }
   });
   const dragEnd = (e, cancel) => {
