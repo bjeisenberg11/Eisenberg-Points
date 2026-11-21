@@ -214,7 +214,7 @@ function bricks(fx){
     if(--b.hp>0){ SFX.clank(); return; }
     b.alive = false; hits++; g.score += (10 + Math.max(0, 9-b.r)*2) * (on('X') ? 2 : 1); SFX.brick(b.r);
     P.burst(bx(b)+8, by(b)+4, COL[b.t], 7, 1.5);
-    if(kind!=='bonus' && caps.length<2 && Math.random()<.15){ let k = pick(DROPS); if(k==='B' && door) k = 'W'; caps.push({x:bx(b)+8, y:by(b)+4, k}); }
+    if(kind!=='bonus' && caps.length<2 && Math.random()<.09){ let k = pick(DROPS); if(k==='B' && door) k = 'W'; caps.push({x:bx(b)+8, y:by(b)+4, k}); }
   }
   g.update = inp => {
     tick++; P.step();
