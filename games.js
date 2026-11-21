@@ -177,43 +177,52 @@ function bricks(fx){
     ['x.hhhhhhhhhh.x','..1111111111..','..2222222222..','x.3333333333.x','..4444444444..','..5555555555..','x.6666666666.x'],
     ['..11......11..','.1111....1111.','11111111111111','11111111111111','.111111111111.','..1111111111..','...11111111...','....111111....','.....1111.....','......11......']
   ];
+  const G = rows => spr(rows, {w:'#fff'});
   const GLYPH = {
-    W: spr(['w...w','w...w','w.w.w','ww.ww','w...w'], {w:'#fff'}), M: spr(['w...w','ww.ww','w.w.w','w...w','w...w'], {w:'#fff'}),
-    S: spr(['.www.','w....','.ww..','...w.','www..'], {w:'#fff'}), L: spr(['..w..','..w..','wwwww','..w..','..w..'], {w:'#fff'})
+    W: G(['w...w','w...w','w.w.w','ww.ww','w...w']), M: G(['w...w','ww.ww','w.w.w','w...w','w...w']), S: G(['.www.','w....','.ww..','...w.','www..']),
+    H: G(['.w.w.','wwwww','wwwww','.www.','..w..']), L: G(['w....','w....','w....','w....','wwww.']), C: G(['.www.','w....','w....','w....','.www.']),
+    F: G(['wwww.','w....','www..','w....','w....']), B: G(['www..','w..w.','www..','w..w.','www..']), X: G(['w...w','.w.w.','..w..','.w.w.','w...w'])
   };
-  const CAPCOL = {W:'#4cc9f0', M:'#ff7eb6', S:'#59c36a', L:'#ff5a5f'}, CAPNAME = {W:'Wide paddle', M:'Multi-ball', S:'Slow ball', L:'Extra life'};
-  let px = W/2, balls = [], list = [], caps = [], stage = 1, kind = 'static', stuck = true, hits = 0, wide = 0, slow = 0, shrunk = false, scroll = 0, drop = 0, dropT = 0, bonusT = 0, tick = 0;
-  const g = {score:0, lives:3, over:false, pad:'lrfire', fireLabel:'Launch', info:'Stage 1', hint:'Drag your finger anywhere on the screen to move the paddle. Tap to launch the ball. Catch the falling capsules for power-ups.'};
+  const CAPCOL = {W:'#4cc9f0', M:'#ff7eb6', S:'#59c36a', H:'#8e96b3', L:'#ff9f43', C:'#2ec4b6', F:'#e63946', B:'#b388ff', X:'#e0a100'};
+  const CAPNAME = {W:'Wide paddle', M:'Multi-ball', S:'Slow ball', H:'Extra life', L:'Laser! Tap to fire', C:'Catch! Tap to release', F:'Fireball', B:'Warp door open \u2192', X:'Double points'};
+  const DROPS = ['W','W','W','M','M','S','S','H','L','L','C','C','F','F','B','X','X'];
+  const TIMED = {W:60*15, S:60*10, L:60*12, C:60*15, F:60*8, X:60*15};
+  let px = W/2, balls = [], list = [], caps = [], beams = [], stage = 1, kind = 'static', stuck = true, hits = 0, shrunk = false, scroll = 0, drop = 0, dropT = 0, bonusT = 0, tick = 0, cool = 0, door = false;
+  let pw_ = {};   /* active timed power-ups: letter -> frames left */
+  const on = k => (pw_[k] || 0) > 0;
+  const g = {score:0, lives:3, over:false, pad:'lrfire', fireLabel:'Launch', info:'Stage 1', hint:'Drag your finger anywhere on the screen to move the paddle. Tap to launch the ball. Catch falling capsules for power-ups: wide paddle, multi-ball, slow ball, laser, catch, fireball, warp door, double points and extra life.'};
   const P = Parts();
-  const pw = () => (shrunk ? 26 : 40) + (wide ? 18 : 0);
+  const pw = () => (shrunk ? 26 : 40) + (on('W') ? 18 : 0);
   const bx = b => { let x = b.c*BW + (kind==='scroll' ? scroll*(b.r%2 ? 1 : -1) : 0); x = ((x % FW) + FW) % FW; return X0 + x; };
   const by = b => Y0 + b.r*BH + drop;
-  const speed = () => (2.2 + Math.min(stage,10)*0.1) * (hits>=12 ? 1.3 : hits>=4 ? 1.15 : 1) * (slow ? .7 : 1) * (kind==='bonus' ? 1.2 : 1);
+  const speed = () => (2.2 + Math.min(stage,10)*0.1) * (hits>=12 ? 1.3 : hits>=4 ? 1.15 : 1) * (on('S') ? .7 : 1) * (kind==='bonus' ? 1.2 : 1);
   function serve(){ stuck = true; balls = [{x:px, y:PY-4, ux:0, uy:-1, tr:[]}]; }
   function load(){
     kind = ['static','scroll','advance','bonus'][(stage-1)%4];
     const L = kind==='bonus' ? LAYOUTS[Math.floor(stage/4)%2 ? 3 : 7] : LAYOUTS[[0,1,2,4,5,6][(stage - Math.floor(stage/4) - 1) % 6]];
     list = []; L.forEach((row,r) => { for(let c=0;c<row.length;c++){ const ch = row[c]; if(ch!=='.') list.push({c, r, t:ch, hp:ch==='h'?2:1, alive:true}); } });
-    scroll = 0; drop = 0; dropT = 0; caps = []; shrunk = false; wide = 0; slow = 0; hits = 0; bonusT = kind==='bonus' ? 60*25 : 0;
+    scroll = 0; drop = 0; dropT = 0; caps = []; beams = []; shrunk = false; pw_ = {}; door = false; hits = 0; bonusT = kind==='bonus' ? 60*25 : 0;
     g.info = kind==='bonus' ? 'Bonus stage' : 'Stage '+stage; serve();
   }
   load();
   g.ctrlX = () => px;
-  g._dbg = n => { if(n==='win') list.forEach(b => b.alive = false); else { stage = n; load(); } };
+  g._st = () => ({balls, pw:pw_, door, stuck, beams:beams.length, alive:list.filter(b => b.alive).length});
+  g._dbg = n => { if(n==='win') list.forEach(b => b.alive = false); else if(typeof n==='string' && n.length===1) caps.push({x:px, y:PY-30, k:n}); else { stage = n; load(); } };
   function next(msg){ stage++; SFX.level(); fx.msg(msg); load(); }
   function hitBrick(b, ball){
     if(b.t==='x'){ SFX.clank(); return; }
     if(--b.hp>0){ SFX.clank(); return; }
-    b.alive = false; hits++; g.score += 10 + Math.max(0, 9-b.r)*2; SFX.brick(b.r);
+    b.alive = false; hits++; g.score += (10 + Math.max(0, 9-b.r)*2) * (on('X') ? 2 : 1); SFX.brick(b.r);
     P.burst(bx(b)+8, by(b)+4, COL[b.t], 7, 1.5);
-    if(kind!=='bonus' && caps.length<2 && Math.random()<.14) caps.push({x:bx(b)+8, y:by(b)+4, k:pick(['W','W','W','M','M','S','S','L'])});
+    if(kind!=='bonus' && caps.length<2 && Math.random()<.15){ let k = pick(DROPS); if(k==='B' && door) k = 'W'; caps.push({x:bx(b)+8, y:by(b)+4, k}); }
   }
   g.update = inp => {
     tick++; P.step();
     const w = pw();
     if(inp.px != null) px += clamp(inp.px-px, -9, 9); else px += (inp.held.right?4:0) - (inp.held.left?4:0);
     px = clamp(px, X0+w/2-2, W-X0-w/2+2);
-    if(wide) wide--; if(slow) slow--;
+    for(const k in pw_) if(pw_[k] > 0) pw_[k]--;
+    if(cool) cool--;
     if(kind==='scroll') scroll += .35 + Math.min(stage,12)*.02;
     if(kind==='advance' && !stuck && ++dropT >= 540){ dropT = 0; drop += BH; SFX.tick(); for(const b of list) if(b.alive && by(b) > PY-52) b.alive = false; }
     if(kind==='bonus' && !stuck){ if(--bonusT<=0) return next('Time! Stage '+(stage+1)); if(bonusT<300 && bonusT%60===0) SFX.tick(); }
@@ -221,11 +230,32 @@ function bricks(fx){
       const cp = caps[i]; cp.y += 1.1;
       if(cp.y>=PY-4 && cp.y<=PY+8 && Math.abs(cp.x-px) <= w/2+6){
         caps.splice(i,1); fx.msg(CAPNAME[cp.k]);
-        if(cp.k==='L'){ if(g.lives<5) g.lives++; SFX.life(); } else SFX.power();
-        if(cp.k==='W') wide = 60*15; if(cp.k==='S') slow = 60*10;
+        if(cp.k==='H'){ if(g.lives<5) g.lives++; SFX.life(); } else SFX.power();
+        if(TIMED[cp.k]) pw_[cp.k] = TIMED[cp.k];
+        if(cp.k==='L') pw_.C = 0; if(cp.k==='C') pw_.L = 0;   /* laser and catch replace each other */
+        if(cp.k==='B') door = true;
+        if(cp.k==='C' || cp.k==='L') balls.forEach(b => { if(b.held!=null && cp.k==='L') b.held = null; });
         if(cp.k==='M' && !stuck){ const add = []; for(const b of balls){ if(balls.length+add.length>=3) break; const a = Math.atan2(b.uy,b.ux); for(const o of [-.5,.5]){ if(balls.length+add.length>=3) break; add.push({x:b.x, y:b.y, ux:Math.cos(a+o), uy:Math.sin(a+o), tr:[]}); } } balls = balls.concat(add); }
       } else if(cp.y > H+8) caps.splice(i,1);
     }
+    /* warp door: slide the paddle into the right wall to skip to the next stage */
+    if(door && px >= W-X0-w/2+1 && kind!=='bonus'){ g.score += 100*(on('X')?2:1); SFX.home(); return next('Warp! Stage '+(stage+1)); }
+    /* laser beams */
+    const firing = inp.tap.includes('fire') || inp.held.fire;
+    if(on('L') && !stuck && firing && !cool && beams.length < 6){ const L = px-w/2; beams.push({x:L+3, y:PY-2}, {x:L+w-4, y:PY-2}); cool = 16; SFX.shoot(); }
+    for(const bm of beams){
+      bm.y -= 5;
+      for(const b of list){
+        if(!b.alive) continue; const y = by(b); if(bm.y < y || bm.y > y+BH) continue;
+        const x = bx(b), xs = x+BW > X0+FW ? [x, x-FW] : [x];
+        if(xs.some(X => bm.x >= Math.max(X,X0) && bm.x <= Math.min(X+BW, X0+FW))){ hitBrick(b); bm.y = -99; break; }
+      }
+    }
+    beams = beams.filter(bm => bm.y > 20);
+    /* caught balls ride the paddle; tap (or wait) to let go */
+    const held = balls.filter(b => b.held!=null);
+    for(const b of held){ b.x = clamp(px + b.held, X0+3, W-X0-3); b.y = PY-4; if(--b.holdT<=0 || inp.tap.includes('fire') || inp.tap.includes('up')){ const a = -Math.PI/2 + clamp(b.held/(w/2), -1, 1)*1.05; b.ux = Math.cos(a); b.uy = Math.sin(a); b.held = null; SFX.paddle(); } }
+    g.fireLabel = stuck || held.length ? 'Launch' : on('L') ? 'Fire' : 'Launch';
     if(stuck){
       balls[0].x = px; balls[0].y = PY-4;
       if(inp.tap.includes('fire') || inp.tap.includes('up')){ const a = -Math.PI/2 + (Math.random()-.5)*.7; balls[0].ux = Math.cos(a); balls[0].uy = Math.sin(a); stuck = false; SFX.paddle(); }
@@ -233,7 +263,7 @@ function bricks(fx){
     }
     const sp = speed();
     for(let bi=balls.length-1;bi>=0;bi--){
-      const ball = balls[bi]; ball.tr.push({x:ball.x, y:ball.y}); if(ball.tr.length>5) ball.tr.shift();
+      const ball = balls[bi]; if(ball.held!=null) continue; ball.tr.push({x:ball.x, y:ball.y}); if(ball.tr.length>5) ball.tr.shift();
       let lost = false;
       for(let i=0;i<3 && !lost;i++){
         const ox = ball.x; ball.x += ball.ux*sp/3; ball.y += ball.uy*sp/3;
@@ -241,6 +271,7 @@ function bricks(fx){
         if(ball.y<23){ ball.y = 23; ball.uy = Math.abs(ball.uy); SFX.wall(); if(!shrunk && kind!=='bonus'){ shrunk = true; SFX.shrink(); fx.msg('Paddle shrinks!'); } }
         if(ball.uy>0 && ball.y>=PY-3 && ball.y<=PY+5 && Math.abs(ball.x-px) <= w/2+3){
           const a = -Math.PI/2 + clamp((ball.x-px)/(w/2), -1, 1)*1.05; ball.ux = Math.cos(a); ball.uy = Math.sin(a); ball.y = PY-3; SFX.paddle();
+          if(on('C')){ ball.held = ball.x - px; ball.holdT = 180; ball.tr = []; break; }
         }
         if(ball.y > H+8){ lost = true; break; }
         for(const b of list){
@@ -248,10 +279,12 @@ function bricks(fx){
           const y = by(b); if(ball.y < y-3 || ball.y > y+BH+3) continue;
           const x = bx(b), xs = x+BW > X0+FW ? [x, x-FW] : [x];
           let hit = false;
+          const through = on('F') && b.t!=='x';
           for(const X of xs){
             const lo = Math.max(X, X0), hi = Math.min(X+BW, X0+FW);
-            if(ball.x >= lo-3 && ball.x <= hi+3){ hit = true; if(kind!=='bonus'){ if(ox < lo-3 || ox > hi+3) ball.ux = -ball.ux; else ball.uy = -ball.uy; } break; }
+            if(ball.x >= lo-3 && ball.x <= hi+3){ hit = true; if(kind!=='bonus' && !through){ if(ox < lo-3 || ox > hi+3) ball.ux = -ball.ux; else ball.uy = -ball.uy; } break; }
           }
+          if(hit && through){ b.hp = 1; hitBrick(b, ball); P.burst(ball.x, ball.y, '#ff9f43', 4, 1); continue; }
           if(hit){ hitBrick(b, ball); break; }
         }
       }
@@ -259,7 +292,7 @@ function bricks(fx){
     }
     if(!balls.length){
       if(kind==='bonus'){ serve(); return; }
-      SFX.squash(); fx.shake(5); wide = 0; slow = 0; shrunk = false; hits = 0; caps = [];
+      SFX.squash(); fx.shake(5); pw_ = {}; shrunk = false; hits = 0; caps = []; beams = [];
       if(--g.lives<=0){ g.over = true; return; } serve(); return;
     }
     if(!list.some(b => b.alive && b.t!=='x')){
@@ -286,14 +319,29 @@ function bricks(fx){
       }
     }
     c.restore();
+    if(door){ const t = tick%20<10; c.fillStyle = '#b388ff'; c.fillRect(W-X0+2, PY-14, X0-2, 24); c.fillStyle = t ? '#fff' : '#e3d4ff'; c.fillRect(W-X0+3, PY-11, X0-4, 18); c.fillStyle = '#b388ff'; c.fillRect(W-X0-10+(tick>>2)%6, PY-20, 3, 3); }
+    c.fillStyle = '#ffd166'; for(const bm of beams){ c.fillRect(bm.x-1, bm.y, 2, 6); c.fillStyle = '#fff'; c.fillRect(bm.x-1, bm.y, 2, 2); c.fillStyle = '#ffd166'; }
     for(const cp of caps){ c.fillStyle = CAPCOL[cp.k]; c.fillRect(cp.x-7, cp.y-3, 14, 8); c.fillRect(cp.x-8, cp.y-2, 16, 6); c.fillStyle = 'rgba(255,255,255,.4)'; c.fillRect(cp.x-6, cp.y-3, 12, 1); c.drawImage(GLYPH[cp.k], (cp.x-2)|0, (cp.y-1)|0); }
     const w = pw(), L = (px-w/2)|0;
     c.fillStyle = '#d8def5'; c.fillRect(L+3, PY, w-6, 7); c.fillStyle = '#fff'; c.fillRect(L+3, PY, w-6, 2); c.fillStyle = '#8f97bd'; c.fillRect(L+3, PY+5, w-6, 2);
-    c.fillStyle = wide ? '#4cc9f0' : '#ff5a5f'; c.fillRect(L, PY+1, 4, 5); c.fillRect(L+w-4, PY+1, 4, 5); c.fillRect(L+1, PY, 3, 7); c.fillRect(L+w-4, PY, 3, 7);
+    c.fillStyle = on('L') ? '#ff9f43' : on('C') ? '#2ec4b6' : on('W') ? '#4cc9f0' : '#ff5a5f'; c.fillRect(L, PY+1, 4, 5); c.fillRect(L+w-4, PY+1, 4, 5); c.fillRect(L+1, PY, 3, 7); c.fillRect(L+w-4, PY, 3, 7);
+    if(on('L')){ c.fillRect(L+2, PY-4, 2, 4); c.fillRect(L+w-4, PY-4, 2, 4); }
+    if(on('C')){ c.fillStyle = '#2ec4b6'; c.fillRect(L+4, PY-1, w-8, 1); }
     for(const ball of balls){
       ball.tr.forEach((p,i) => { c.fillStyle = `rgba(255,255,255,${.08+i*.05})`; c.fillRect((p.x-2)|0, (p.y-2)|0, 4, 4); });
-      c.fillStyle = slow ? '#9be87f' : '#fff'; c.fillRect((ball.x-3)|0, (ball.y-2)|0, 6, 4); c.fillRect((ball.x-2)|0, (ball.y-3)|0, 4, 6);
+      const fire = on('F');
+      if(fire){ c.fillStyle = 'rgba(255,120,40,.45)'; c.fillRect((ball.x-5)|0, (ball.y-4)|0, 10, 8); }
+      c.fillStyle = fire ? '#ffb347' : on('S') ? '#9be87f' : '#fff'; c.fillRect((ball.x-3)|0, (ball.y-2)|0, 6, 4); c.fillRect((ball.x-2)|0, (ball.y-3)|0, 4, 6);
     }
+    /* active power-ups with time left, along the bottom */
+    let ix = X0+2;
+    for(const k of ['W','S','L','C','F','X']){
+      const t = pw_[k] || 0; if(!t) continue; if(t < 120 && tick%12 < 6){ ix += 30; continue; }
+      c.fillStyle = CAPCOL[k]; c.fillRect(ix, 307, 9, 9); c.drawImage(GLYPH[k], ix+2, 309);
+      c.fillStyle = '#2a2f55'; c.fillRect(ix+11, 310, 16, 3); c.fillStyle = CAPCOL[k]; c.fillRect(ix+11, 310, Math.ceil(16*t/TIMED[k]), 3);
+      ix += 30;
+    }
+    if(door){ c.fillStyle = '#b388ff'; c.fillRect(ix, 307, 9, 9); c.drawImage(GLYPH.B, ix+2, 309); }
     P.draw(c);
   };
   return g;
@@ -802,10 +850,11 @@ function open(opts){
   const fmt = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
   const hud = () => {
     const t = opts.test ? 'Test' : (left()>0 ? fmt(left()) : (state==='play' ? 'Last game' : '0:00'));
-    const key = g.score+'|'+g.lives+'|'+t+'|'+g.info; if(key===lastHud) return; lastHud = key;
+    const key = g.score+'|'+g.lives+'|'+t+'|'+g.info+'|'+g.fireLabel; if(key===lastHud) return; lastHud = key;
     q('.g-score').textContent = g.score; q('.g-lives').textContent = g.lives==null ? '' : '♥'.repeat(Math.max(0,g.lives));
     q('.g-time').textContent = t; q('.g-time').classList.toggle('out', !opts.test && left()<=0);
     q('.g-info').textContent = g.info || ''; q('.g-info').style.display = g.info ? '' : 'none';
+    if(g.fireLabel && q('.g-fire').textContent !== g.fireLabel) q('.g-fire').textContent = g.fireLabel;
   };
   const ready = () => { state = 'ready'; fresh(); g.draw(c); hud();
     if(left()<=0) return show(`<h2>No game time left</h2><p>Earn more game time, then come back and play.</p><button data-a="quit">Back to games</button>`);
