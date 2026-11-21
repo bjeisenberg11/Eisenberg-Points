@@ -359,19 +359,34 @@ function blasters(fx){
   const UFO = spr(['....rrrrrrrr....','..rrrrrrrrrrrr..','.rr.rr.rr.rr.rr.','rrrrrrrrrrrrrrrr','..rrr..rr..rrr..','...r........r...'], {r:'#ff5a5f'});
   const BUNK = ['..#######..','.#########.','###########','###########','###########','###.....###','##.......##','##.......##'];
   const stars = Array.from({length:46}, () => ({x:rnd(W), y:rnd(H-20), p:rnd(90)}));
-  let al, ox, oy, dir, stepT = 0, note = 0, frame = 0, wave = 1, px = W/2, shots = [], bombs = [], bunk = [], booms = [], ufo = null, ufoT = 0, hurt = 0, rapid = 0, cap = null, cool = 0, bombT = 0, extra = false, tick = 0;
-  const g = {score:0, lives:3, over:false, pad:'lrfire', fireLabel:'Fire', info:'Wave 1', hint:'Drag your finger anywhere on the screen to move. Your ship fires on its own while you drag. You can also use the arrows and hold Fire. Hide behind the shields, and hit the red saucer for a power-up.'};
+  const G5 = rows => spr(rows, {w:'#fff'});
+  const GLYPH = {
+    R: G5(['www..','w..w.','www..','w.w..','w..w.']), D: G5(['w.w.w','w.w.w','.www.','..w..','..w..']), P: G5(['..w..','.www.','w.w.w','..w..','..w..']),
+    S: G5(['.www.','w...w','w...w','w...w','.www.']), T: G5(['wwwww','.www.','..w..','.www.','wwwww']), N: G5(['w.w.w','.www.','wwwww','.www.','w.w.w']),
+    F: G5(['.....','..w..','.www.','wwwww','ww.ww']), H: G5(['.w.w.','wwwww','wwwww','.www.','..w..'])
+  };
+  const CAPCOL = {R:'#e0a100', D:'#4cc9f0', P:'#ff7eb6', S:'#2ec4b6', T:'#b388ff', N:'#ff5a5f', F:'#59c36a', H:'#8e96b3'};
+  const CAPNAME = {R:'Rapid fire', D:'Triple shot', P:'Piercing laser', S:'Force field', T:'Freeze!', N:'Smart bomb!', F:'Shields rebuilt', H:'Extra ship'};
+  const TIMED = {R:60*12, D:60*12, P:60*10, S:60*25, T:60*6};
+  const DROPS = ['R','R','D','D','P','P','S','S','T','N','F','H'];
+  let al, ox, oy, dir, stepT = 0, note = 0, frame = 0, wave = 1, px = W/2, shots = [], bombs = [], bunk = [], booms = [], ufo = null, ufoT = 0, hurt = 0, caps = [], cool = 0, bombT = 0, extra = false, tick = 0, pw_ = {};
+  const on = k => (pw_[k] || 0) > 0;
+  const g = {score:0, lives:3, over:false, pad:'lrfire', fireLabel:'Fire', info:'Wave 1', hint:'Drag your finger anywhere on the screen to move. Your ship fires on its own while you drag. You can also use the arrows and hold Fire. Hide behind the shields. The red saucer, and sometimes an alien, drops capsules: rapid fire, triple shot, piercing laser, force field, freeze, smart bomb, shield repair and extra ship.'};
   const P = Parts(), PY = 288;
   function spawn(){
     al = []; for(let r=0;r<5;r++) for(let c=0;c<11;c++) al.push({c, r, alive:true});
-    ox = 32; oy = 34 + Math.min(wave-1, 5)*8; dir = 1; stepT = 0; shots = []; bombs = []; ufo = null; ufoT = 60*(14+rnd(8)); cap = null;
-    bunk = [36,92,148,204].map(cx => ({x:cx-11, y:250, cells:BUNK.map(r => [...r].map(ch => ch==='#'))}));
+    ox = 32; oy = 34 + Math.min(wave-1, 5)*8; dir = 1; stepT = 0; shots = []; bombs = []; ufo = null; ufoT = 60*(14+rnd(8)); caps = [];
+    bunk = freshBunkers();
     g.info = 'Wave '+wave;
   }
   spawn();
   g.ctrlX = () => px; g.autoFire = true;
-  g._dbg = k => { if(k==='ufo') ufoT = 1; if(k==='clear') al.forEach((a,i) => { if(i) a.alive = false; }); if(k==='all') al.forEach(a => a.alive = false); if(k==='cap') cap = {x:px, y:200}; };
+  g._dbg = k => { if(k==='ufo') ufoT = 1; if(k==='clear') al.forEach((a,i) => { if(i) a.alive = false; }); if(k==='all') al.forEach(a => a.alive = false); if(k==='cap') caps.push({x:px, y:200, k:'R'}); if(typeof k==='string' && CAPCOL[k]) caps.push({x:px, y:240, k}); };
+  g._st = () => ({pw:pw_, shots:shots.length, live:al.filter(a => a.alive).length, bunk:bunk.reduce((t,b) => t+b.cells.flat().filter(Boolean).length, 0), lives:g.lives});
   const ax = a => ox + a.c*16, ay = a => oy + a.r*14;
+  function freshBunkers(){ return [36,92,148,204].map(cx => ({x:cx-11, y:250, cells:BUNK.map(r => [...r].map(ch => ch==='#'))})); }
+  function drop(x, y, k){ if(caps.length < 2) caps.push({x, y, k: k || pick(DROPS)}); }
+  function kill(a){ const X = ax(a), Y = ay(a); a.alive = false; g.score += PTS[a.r]; SFX.pop(); booms.push({x:X, y:Y, t:10}); P.burst(X+6, Y+4, ['#ff7eb6','#ffd166','#7bd389'][TYPE[a.r]], 8, 1.4); if(Math.random() < .03) drop(X+6, Y+8); }
   function erode(x, y, rad){
     for(const b of bunk){
       if(x<b.x || x>=b.x+22 || y<b.y || y>=b.y+16) continue;
@@ -386,12 +401,16 @@ function blasters(fx){
     if(hurt){ if(--hurt===0 && g.lives<=0) g.over = true; return; }
     if(inp.px != null) px += clamp(inp.px-px, -3.5, 3.5); else px += (inp.held.right?2.2:0) - (inp.held.left?2.2:0);
     px = clamp(px, 12, W-12);
-    if(cool) cool--; if(rapid) rapid--;
-    if((inp.held.fire || inp.tap.includes('fire')) && !cool && shots.length < (rapid ? 3 : 1)){ shots.push({x:px, y:PY-2}); cool = rapid ? 9 : 16; SFX.shoot(); }
+    if(cool) cool--; for(const k in pw_) if(pw_[k] > 0) pw_[k]--;
+    const maxShots = (on('R') ? 3 : 1) * (on('D') ? 3 : 1);
+    if((inp.held.fire || inp.tap.includes('fire')) && !cool && shots.length + (on('D') ? 3 : 1) <= maxShots){
+      if(on('D')) shots.push({x:px, y:PY-2, vx:0}, {x:px-3, y:PY-1, vx:-.55}, {x:px+3, y:PY-1, vx:.55}); else shots.push({x:px, y:PY-2, vx:0});
+      cool = on('R') ? 9 : 16; SFX.shoot();
+    }
     const live = al.filter(a => a.alive), n = live.length;
     if(!n){ wave++; g.score += 100; SFX.level(); fx.msg('Wave '+wave); spawn(); return; }
-    /* march */
-    if(++stepT >= clamp(Math.round(n*.5) - (wave-1), 2, 30)){
+    /* march (stops while frozen) */
+    if(!on('T') && ++stepT >= clamp(Math.round(n*.5) - (wave-1), 2, 30)){
       stepT = 0; frame ^= 1; SFX.march(note++);
       let lo = 99, hi = -1; for(const a of live){ if(a.c<lo) lo = a.c; if(a.c>hi) hi = a.c; }
       if((dir>0 && ox+hi*16+12+2 > W-4) || (dir<0 && ox+lo*16-2 < 4)){ dir = -dir; oy += 8; } else ox += 2*dir;
@@ -404,32 +423,43 @@ function blasters(fx){
     /* shots */
     for(const s of shots){
       for(let k=0;k<3 && s.y>-10;k++){
-        s.y -= 2;
+        s.y -= 2; s.x += (s.vx||0)*2/3;
+        if(s.x < 0 || s.x > W){ s.y = -99; break; }
         if(erode(s.x|0, s.y|0, 1)){ s.y = -99; break; }
         if(ufo && s.y<32 && s.y>22 && s.x>ufo.x && s.x<ufo.x+16){
           const pts = pick([50,100,100,150,300]); g.score += pts; fx.msg('+'+pts); SFX.boom(); P.burst(ufo.x+8, 27, '#ff5a5f', 18, 2);
-          if(!cap) cap = {x:ufo.x+8, y:30}; ufo = null; s.y = -99; break;
+          drop(ufo.x+8, 30); ufo = null; s.y = -99; break;
         }
         for(const a of live){
           const X = ax(a), Y = ay(a);
-          if(a.alive && s.x>=X-1 && s.x<=X+12 && s.y>=Y && s.y<=Y+8){ a.alive = false; s.y = -99; g.score += PTS[a.r]; SFX.pop(); booms.push({x:X, y:Y, t:10}); P.burst(X+6, Y+4, ['#ff7eb6','#ffd166','#7bd389'][TYPE[a.r]], 8, 1.4); break; }
+          if(a.alive && s.x>=X-1 && s.x<=X+12 && s.y>=Y && s.y<=Y+8){ kill(a); if(!on('P')) s.y = -99; break; }
         }
       }
     }
     shots = shots.filter(s => s.y > -6);
     /* bombs */
-    if(++bombT >= Math.max(24, 66-wave*6) && bombs.length<3){
+    if(!on('T') && ++bombT >= Math.max(24, 66-wave*6) && bombs.length<3){
       bombT = 0; const cur = live.filter(a => a.alive);
       if(cur.length){ const col = pick(cur).c, low = cur.filter(a => a.c===col).sort((a,b) => b.r-a.r)[0]; bombs.push({x:ax(low)+6, y:ay(low)+8, z:rnd(2)}); }
     }
     const bs = Math.min(3, 1.4 + wave*.12);
     for(const b of bombs){
-      b.y += bs;
+      if(!on('T')) b.y += bs;
       if(erode(b.x|0, (b.y+4)|0, 1)){ b.y = 999; continue; }
-      if(Math.abs(b.x-px)<7 && b.y+5>PY && b.y<PY+8){ bombs = []; shots = []; hurt = 70; g.lives--; rapid = 0; SFX.boom(); fx.shake(8); P.burst(px, PY+4, '#e8ecff', 24, 2.4); break; }
+      if(on('S') && Math.hypot(b.x-px, b.y+3-(PY+4)) < 14){ b.y = 999; pw_.S = 0; SFX.clank(); P.burst(px, PY, '#2ec4b6', 16, 2); fx.msg('Force field gone'); continue; }
+      if(Math.abs(b.x-px)<7 && b.y+5>PY && b.y<PY+8){ bombs = []; shots = []; hurt = 70; g.lives--; pw_ = {}; SFX.boom(); fx.shake(8); P.burst(px, PY+4, '#e8ecff', 24, 2.4); break; }
     }
     bombs = bombs.filter(b => b.y < 304);
-    if(cap){ cap.y += 1.3; if(cap.y>PY-2 && cap.y<PY+10 && Math.abs(cap.x-px)<12){ cap = null; rapid = 60*12; SFX.power(); fx.msg('Rapid fire'); } else if(cap.y>306) cap = null; }
+    for(let i=caps.length-1;i>=0;i--){
+      const cp = caps[i]; cp.y += 1.3;
+      if(cp.y>PY-2 && cp.y<PY+10 && Math.abs(cp.x-px)<12){
+        caps.splice(i,1); fx.msg(CAPNAME[cp.k]); cp.k==='H' ? SFX.life() : SFX.power();
+        if(TIMED[cp.k]) pw_[cp.k] = TIMED[cp.k];
+        if(cp.k==='H') g.lives = Math.min(6, g.lives+1);
+        if(cp.k==='F') bunk = freshBunkers();
+        if(cp.k==='N'){ const live2 = al.filter(a => a.alive); const low = Math.max(...live2.map(a => a.r)); for(const a of live2) if(a.r===low) kill(a); bombs = []; fx.shake(6); SFX.boom(); }
+      } else if(cp.y>306) caps.splice(i,1);
+    }
     if(!extra && g.score>=1500){ extra = true; g.lives++; SFX.life(); fx.msg('Extra ship'); }
   };
   g.draw = c => {
@@ -440,9 +470,21 @@ function blasters(fx){
     for(const a of al) if(a.alive) c.drawImage(AL[TYPE[a.r]][frame], ax(a), ay(a));
     c.fillStyle = '#fff'; for(const b of booms){ const X = b.x+6, Y = b.y+4, r = 10-b.t; c.fillRect(X-r,Y,2,1); c.fillRect(X+r,Y,2,1); c.fillRect(X,Y-r*.7,1,2); c.fillRect(X,Y+r*.7,1,2); c.fillRect(X-r*.7,Y-r*.5,1,1); c.fillRect(X+r*.7,Y+r*.5,1,1); c.fillRect(X+r*.7,Y-r*.5,1,1); c.fillRect(X-r*.7,Y+r*.5,1,1); }
     if(ufo) c.drawImage(UFO, ufo.x|0, 24);
-    if(cap){ c.fillStyle = '#ffd166'; c.fillRect(cap.x-5, cap.y-3, 10, 7); c.fillRect(cap.x-6, cap.y-2, 12, 5); c.fillStyle = '#231c4f'; c.fillRect(cap.x-3, cap.y-1, 1, 3); c.fillRect(cap.x-1, cap.y-1, 1, 3); c.fillRect(cap.x+1, cap.y-1, 1, 3); c.fillRect(cap.x+3, cap.y, 1, 1); }
-    if(!hurt){ c.drawImage(SHIP, (px-6)|0, PY); if(rapid && (rapid>120 || tick%10<6)){ c.fillStyle = '#ffd166'; c.fillRect((px-8)|0, PY+9, 16*Math.min(1,rapid/720), 1); } }
-    c.fillStyle = '#fff'; for(const s of shots) c.fillRect(s.x|0, s.y, 1, 6);
+    for(const cp of caps){ const X = cp.x|0, Y = cp.y|0; c.fillStyle = CAPCOL[cp.k]; c.fillRect(X-7, Y-3, 14, 9); c.fillRect(X-8, Y-2, 16, 7); c.fillStyle = 'rgba(255,255,255,.4)'; c.fillRect(X-6, Y-3, 12, 1); c.drawImage(GLYPH[cp.k], X-2, Y-1); }
+    if(!hurt){
+      c.drawImage(SHIP, (px-6)|0, PY);
+      if(on('S') && (pw_.S > 120 || tick%10<6)){ c.strokeStyle = 'rgba(46,196,182,.85)'; c.lineWidth = 1; c.beginPath(); c.arc(px, PY+4, 12 + (tick%30<15 ? 0 : 1), Math.PI, 0); c.stroke(); }
+    }
+    for(const s of shots){ c.fillStyle = on('P') ? '#ff7eb6' : '#fff'; c.fillRect(s.x|0, s.y, on('P') ? 2 : 1, 6); }
+    if(on('T')){ c.fillStyle = 'rgba(179,136,255,.10)'; c.fillRect(0, 20, W, 284); }
+    /* active power-ups with time left, along the bottom */
+    let ix = 4;
+    for(const k of ['R','D','P','S','T']){
+      const t = pw_[k] || 0; if(!t) continue; if(t < 120 && tick%12 < 6){ ix += 30; continue; }
+      c.fillStyle = CAPCOL[k]; c.fillRect(ix, 308, 9, 9); c.drawImage(GLYPH[k], ix+2, 310);
+      c.fillStyle = '#2a2f55'; c.fillRect(ix+11, 311, 16, 3); c.fillStyle = CAPCOL[k]; c.fillRect(ix+11, 311, Math.ceil(16*t/TIMED[k]), 3);
+      ix += 30;
+    }
     for(const b of bombs){ c.fillStyle = '#ffd166'; const k = ((tick>>2)+b.z)%2; c.fillRect(b.x-1+(k?0:1), b.y, 1, 2); c.fillRect(b.x-1+(k?1:0), b.y+2, 1, 2); c.fillRect(b.x-1+(k?0:1), b.y+4, 1, 2); }
     P.draw(c);
   };
