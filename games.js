@@ -113,6 +113,7 @@ function snake(fx){
   const free = () => { let p; do p = {x:rnd(C), y:rnd(R)}; while(walls.has(key(p.x,p.y)) || s.some(o => o.x===p.x && o.y===p.y) || (food && food.x===p.x && food.y===p.y)); return p; };
   function begin(){ s = [{x:5,y:2},{x:4,y:2},{x:3,y:2}]; d = DIR.right; q = []; walls = maze(level); step = Math.max(4, 10-level); food = null; food = free(); bonus = null; g.info = 'Level '+level; t = 0; }
   begin();
+  g.oneSwipe = true;   /* one swipe = one turn: a thumb that curls sideways at the end of a swipe doesn't add a second turn */
   g._dbg = n => { level = n; begin(); };
   g.update = inp => {
     tick++; P.step();
