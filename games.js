@@ -685,7 +685,7 @@ function chase(fx){
       if(!w(0,-1)) m.fillRect(x,y,T,2); if(!w(0,1)) m.fillRect(x,y+T-2,T,2); if(!w(-1,0)) m.fillRect(x,y,2,T); if(!w(1,0)) m.fillRect(x+T-2,y,2,T);
     } })();
   let dots, left, pl, cats, level = 1, fright = 0, chain = 0, mode = 'scatter', modeT = 0, dead = 0, wait = 0, bonus = null, eaten = 0, tick = 0, want = null, extra = false, munch = 0;
-  const g = {score:0, lives:3, over:false, pad:'dpad', info:'Level 1', hint:'Swipe anywhere on the screen to steer, or keep your thumb on the arrow pad and slide it. You can turn early: the mouse turns at the next corner. Eat every crumb, and grab a big cheese to chase the cats.'};
+  const g = {score:0, lives:3, over:false, pad:'dpad', info:'Level 1', hint:'Swipe anywhere on the screen to steer (one swipe, one turn), or keep your thumb on the arrow pad and slide it. You can turn early: the mouse turns at the next corner. Eat every crumb, and grab a big cheese to chase the cats.'};
   const P = Parts();
   function fill(){ dots = MAP.map(r => [...r].map(ch => ch==='.' || ch==='o' ? ch : '')); left = 150; eaten = 0; bonus = null; }
   function place(){
@@ -693,6 +693,7 @@ function chase(fx){
     cats = [{c:9,r:7,st:'run',t:0},{c:9,r:9,st:'pen',t:120},{c:8,r:9,st:'pen',t:360},{c:10,r:9,st:'pen',t:600}].map((s,i) => ({i, x:cx(s.c), y:cy(s.r), dx:i?0:-1, dy:0, acc:0, st:s.st, t:s.t, scared:false}));
   }
   fill(); place();
+  g.oneSwipe = true;   /* one swipe = one direction, so a thumb curling at the end doesn't change course */
   g._dbg = k => { if(k==='win'){ dots.forEach(r => r.fill('')); left = 0; } if(k==='fright'){ fright = 400; cats.forEach(a => { if(a.st==='run') a.scared = true; }); } };
   const atC = a => (a.x-MX-6) % T === 0 && (a.y-MY-6) % T === 0;
   const tc = a => Math.round((a.x-MX-6)/T), tr = a => Math.round((a.y-MY-6)/T);
