@@ -1149,11 +1149,11 @@ function open(opts){
     const dx = e.clientX-drag.x, dy = e.clientY-drag.y;
     if(g.pad==='lrfire'){ const r = cv.getBoundingClientRect(); inp.px = clamp(drag.sx + dx*(W/r.width)*1.25, 0, W); if(Math.abs(dx) > 4) drag.moved = true; return; }
     if(g.pad==='dpadfire'){
-      const step = Math.max(14, cv.getBoundingClientRect().width/W*14*0.9);   /* about one block width */
-      if(!drag.axis && Math.max(Math.abs(e.clientX-drag.ox), Math.abs(e.clientY-drag.oy)) > 10) drag.axis = Math.abs(e.clientX-drag.ox) >= Math.abs(e.clientY-drag.oy) ? 'x' : 'y';
+      const step = Math.max(22, cv.getBoundingClientRect().width/W*14*1.5);   /* about 1.5 block widths per column */
+      if(!drag.axis && Math.max(Math.abs(e.clientX-drag.ox), Math.abs(e.clientY-drag.oy)) > 16) drag.axis = Math.abs(e.clientX-drag.ox) >= Math.abs(e.clientY-drag.oy) ? 'x' : 'y';
       if(drag.axis==='x'){ while(Math.abs(e.clientX-drag.x) >= step){ const s1 = Math.sign(e.clientX-drag.x); inp.tap.push(s1>0 ? 'right' : 'left'); drag.x += s1*step; drag.moved = true; } }
       const now = performance.now(); drag.hist.push([now, e.clientY]); while(drag.hist.length > 2 && now-drag.hist[0][0] > 150) drag.hist.shift();
-      if(drag.axis==='y'){ const dyAll = e.clientY-drag.oy; inp.held.down = dyAll > 24; if(Math.abs(dyAll) > 10) drag.moved = true; }
+      if(drag.axis==='y'){ const dyAll = e.clientY-drag.oy; inp.held.down = dyAll > 45; if(Math.abs(dyAll) > 16) drag.moved = true; }
       return;
     }
     if(g.oneSwipe && drag.moved) return;
@@ -1167,8 +1167,8 @@ function open(opts){
       const dy = e.clientY-drag.oy, h0 = drag.hist[0], v = (e.clientY-h0[1])/Math.max(performance.now()-h0[0],1);   /* speed over the last moment */
       if(!cancel){
         if(!drag.moved) inp.tap.push('rot');
-        else if(drag.axis==='y' && dy > 40 && v > 0.5) inp.tap.push('drop');
-        else if(drag.axis==='y' && dy < -40) inp.tap.push('hold');
+        else if(drag.axis==='y' && dy > 60 && v > 0.7) inp.tap.push('drop');
+        else if(drag.axis==='y' && dy < -60) inp.tap.push('hold');
       }
     }
     if(g.pad==='lrfire'){ inp.px = null; if(g.autoFire) inp.held.fire = fireId!==null; }
