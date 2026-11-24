@@ -837,7 +837,7 @@ function blocks(fx){
     return c;
   }
   let grid, bag = [], next = [], cur, hold = null, held = false, lines = 0, level = 1, gT = 0, lockT = 0, resets = 0, das = 0, clearing = null, tick = 0, sdT = 0;
-  const g = {score:0, lives:null, over:false, pad:'dpadfire', fireLabel:'Drop', info:'Level 1', music:'blocks', hint:'Tap the screen (or \\u25B2) to turn a block. Drag or use \\u25C0 \\u25B6 to slide it, drag down or hold \\u25BC to speed it up, and flick down or tap Drop to slam it in. Swipe up to put a block on hold for later. Fill a whole row to clear it.'};
+  const g = {score:0, lives:null, over:false, pad:'dpadfire', fireLabel:'Drop', info:'Level 1', music:'blocks', hint:'Tap the screen (or ▲) to turn a block. Drag or use ◀ ▶ to slide it, drag down or hold ▼ to speed it up, and flick down or tap Drop to slam it in. Swipe up to put a block on hold for later. Fill a whole row to clear it.'};
   const P = Parts();
   const refill = () => { const b = Object.keys(SHAPES); for(let i=b.length-1;i>0;i--){ const j = rnd(i+1); [b[i],b[j]] = [b[j],b[i]]; } bag.push(...b); };
   const take = () => { while(next.length < 4){ if(!bag.length) refill(); next.push(bag.shift()); } const t = next.shift(); while(next.length < 3){ if(!bag.length) refill(); next.push(bag.shift()); } return t; };
