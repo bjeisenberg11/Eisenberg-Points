@@ -1057,7 +1057,13 @@ function open(opts){
   paintMute();
   muteBtn.onclick = () => { AU.muted = !AU.muted; try{ localStorage.setItem('ep_mute', AU.muted ? '1' : '0'); }catch(e){} if(AU.muted){ auRest(); musicStop(); } else { auInit(); tone(660, .08, 'square', .05); } paintMute(); };
 
-  const fit = () => { const r = stage.getBoundingClientRect(); let sc = Math.max(0.5, Math.min((r.width-12)/W, (r.height-8)/H)); const whole = Math.floor(sc); if(whole >= 2 && sc - whole < sc*.08) sc = whole; /* crisp whole-pixel scale when it costs little size */ cv.style.width = Math.round(W*sc)+'px'; cv.style.height = Math.round(H*sc)+'px'; };
+  const fit = () => { const r = stage.getBoundingClientRect(); let sc = Math.max(0.5, Math.min((r.width-12)/W, (r.height-8)/H)); const whole = Math.floor(sc); if(whole >= 2 && sc - whole < sc*.08) sc = whole; /* crisp whole-pixel scale when it costs little size */ cv.style.width = Math.round(W*sc)+'px'; cv.style.height = Math.round(H*sc)+'px';
+    /* Draw at the screen's real pixel density (whole-number multiple of the game grid) instead of letting the browser
+       stretch a small 240x320 picture, which iPhones and iPads blur. Pixel art stays sharp with smoothing off. */
+    const k = Math.max(1, Math.min(6, Math.ceil(sc*(window.devicePixelRatio||1) - .05)));
+    if(cv.width !== W*k){ cv.width = W*k; cv.height = H*k; }
+    c.setTransform(k, 0, 0, k, 0, 0); c.imageSmoothingEnabled = false;
+    if(g && state!=='play') g.draw(c); };
   const fresh = () => { g = MAKE[opts.game](fx); inp.tap.length = 0; inp.held = {}; inp.px = null; acc = 0; lastHud = ''; drag = null; padId = null; fireId = null; root.querySelectorAll('.dn').forEach(x => x.classList.remove('dn'));
     q('.g-dpad').className = 'g-dpad' + (g.pad==='lrfire' ? ' lr' : ''); q('.g-dpad .u').hidden = q('.g-dpad .d').hidden = g.pad==='lrfire';
     q('.g-fire').style.display = g.pad==='lrfire' || g.pad==='dpadfire' ? '' : 'none'; q('.g-fire').textContent = g.fireLabel || 'Fire'; fit(); };
