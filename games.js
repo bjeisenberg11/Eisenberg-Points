@@ -38,6 +38,45 @@ function tone(f, d, type, vol, slide, delay){
     o.connect(g); g.connect(AU.out); o.start(t); o.stop(t+d+.03);
   }catch(e){}
 }
+/* Background music: a small step sequencer scheduled a moment ahead on the audio clock, so it stays
+   steady even when frames stutter. A game opts in with g.music (a SONGS key) and g.musicStep() (seconds per eighth note). */
+const hz = m => 440*Math.pow(2, (m-69)/12);
+function note(f, t, d, type, vol){
+  try{
+    const o = AU.ctx.createOscillator(), g = AU.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t+.008);
+    g.gain.setValueAtTime(vol, t+d*.75); g.gain.linearRampToValueAtTime(0, t+d);
+    o.connect(g); g.connect(AU.out); o.start(t); o.stop(t+d+.02);
+  }catch(e){}
+}
+/* "Korobeiniki", the 1800s Russian folk song the Game Boy puzzle classic made famous (public domain).
+   Lead: [midi note, length in eighths]; bass: one root per bar, bounced between octaves in eighths. */
+const SONGS = {
+  blocks: (() => {
+    const A = [[76,2],[71,1],[72,1],[74,2],[72,1],[71,1], [69,2],[69,1],[72,1],[76,2],[74,1],[72,1], [71,3],[72,1],[74,2],[76,2], [72,2],[69,2],[69,2],[0,2],
+               [74,3],[77,1],[81,2],[79,1],[77,1], [76,3],[72,1],[76,2],[74,1],[72,1], [71,2],[71,1],[72,1],[74,2],[76,2], [72,2],[69,2],[69,2],[0,2]];
+    const roots = [40,45,40,45,38,36,40,45];
+    const lead = [], bass = [];
+    for(const [m,l] of A.concat(A)){ lead.push([m,l]); for(let k=1;k<l;k++) lead.push(null); }
+    for(let r=0;r<2;r++) roots.forEach(n => { for(let k=0;k<8;k++) bass.push(n + (k%2 ? 24 : 12)); });
+    return {lead, bass};
+  })()
+};
+const MUS = {song:null, k:0, t:null};
+function musicTick(name, step){
+  if(AU.muted || !AU.ctx || AU.ctx.state!=='running' || !SONGS[name]){ MUS.t = null; return; }
+  const S = SONGS[name], now = AU.ctx.currentTime;
+  if(MUS.song!==name){ MUS.song = name; MUS.k = 0; MUS.t = null; }
+  if(MUS.t===null || MUS.t < now-.25) MUS.t = now+.06;
+  while(MUS.t < now+.2){
+    const L = S.lead[MUS.k];
+    if(L && L[0]) note(hz(L[0]), MUS.t, L[1]*step*.92, 'square', .028);
+    note(hz(S.bass[MUS.k]), MUS.t, step*.8, 'triangle', .09);
+    MUS.t += step; MUS.k = (MUS.k+1) % S.lead.length;
+  }
+}
+function musicStop(reset){ MUS.t = null; if(reset) MUS.k = 0; }
 let noiseBuf = null;
 function noise(d, vol, delay){
   if(AU.muted || !AU.ctx) return;
@@ -798,7 +837,7 @@ function blocks(fx){
     return c;
   }
   let grid, bag = [], next = [], cur, hold = null, held = false, lines = 0, level = 1, gT = 0, lockT = 0, resets = 0, das = 0, clearing = null, tick = 0, sdT = 0;
-  const g = {score:0, lives:null, over:false, pad:'dpadfire', fireLabel:'Drop', info:'Level 1', hint:'Tap the screen (or \\u25B2) to turn a block. Drag or use \\u25C0 \\u25B6 to slide it, drag down or hold \\u25BC to speed it up, and flick down or tap Drop to slam it in. Swipe up to put a block on hold for later. Fill a whole row to clear it.'};
+  const g = {score:0, lives:null, over:false, pad:'dpadfire', fireLabel:'Drop', info:'Level 1', music:'blocks', hint:'Tap the screen (or \\u25B2) to turn a block. Drag or use \\u25C0 \\u25B6 to slide it, drag down or hold \\u25BC to speed it up, and flick down or tap Drop to slam it in. Swipe up to put a block on hold for later. Fill a whole row to clear it.'};
   const P = Parts();
   const refill = () => { const b = Object.keys(SHAPES); for(let i=b.length-1;i>0;i--){ const j = rnd(i+1); [b[i],b[j]] = [b[j],b[i]]; } bag.push(...b); };
   const take = () => { while(next.length < 4){ if(!bag.length) refill(); next.push(bag.shift()); } const t = next.shift(); while(next.length < 3){ if(!bag.length) refill(); next.push(bag.shift()); } return t; };
@@ -810,6 +849,7 @@ function blocks(fx){
   grid = Array.from({length:ROWS}, () => Array(COLS).fill(''));
   spawn(take());
   g._dbg = k => { if(k==='rows'){ grid.forEach(r => r.fill('')); for(let y=ROWS-4;y<ROWS;y++) for(let x=0;x<COLS;x++) grid[y][x] = x===4 ? '' : 'J'; } if(typeof k==='number'){ lines = (k-1)*10; level = k; g.info = 'Level '+k; } };
+  g.musicStep = () => Math.max(.1, .19 - (level-1)*.008);   /* tune quickens with each level */
   g._st = () => ({t:cur.t, x:cur.x, y:cur.y, r:cur.r, lines, level, hold, next:next.slice(), filled:grid.flat().filter(Boolean).length});
   const ground = () => !fits(cur.t, cur.r, cur.x, cur.y+1);
   const touched = () => { if(ground() && resets < 15){ lockT = 0; resets++; } };
@@ -1015,7 +1055,7 @@ function open(opts){
   const muteBtn = q('.g-mute');
   const paintMute = () => { muteBtn.textContent = AU.muted ? '\u{1F507}' : '\u{1F50A}'; muteBtn.classList.toggle('off', AU.muted); muteBtn.setAttribute('aria-label', AU.muted ? 'Turn sound on' : 'Turn sound off'); };
   paintMute();
-  muteBtn.onclick = () => { AU.muted = !AU.muted; try{ localStorage.setItem('ep_mute', AU.muted ? '1' : '0'); }catch(e){} if(AU.muted) auRest(); else { auInit(); tone(660, .08, 'square', .05); } paintMute(); };
+  muteBtn.onclick = () => { AU.muted = !AU.muted; try{ localStorage.setItem('ep_mute', AU.muted ? '1' : '0'); }catch(e){} if(AU.muted){ auRest(); musicStop(); } else { auInit(); tone(660, .08, 'square', .05); } paintMute(); };
 
   const fit = () => { const r = stage.getBoundingClientRect(); let sc = Math.max(0.5, Math.min((r.width-12)/W, (r.height-8)/H)); const whole = Math.floor(sc); if(whole >= 2 && sc - whole < sc*.08) sc = whole; /* crisp whole-pixel scale when it costs little size */ cv.style.width = Math.round(W*sc)+'px'; cv.style.height = Math.round(H*sc)+'px'; };
   const fresh = () => { g = MAKE[opts.game](fx); inp.tap.length = 0; inp.held = {}; inp.px = null; acc = 0; lastHud = ''; drag = null; padId = null; fireId = null; root.querySelectorAll('.dn').forEach(x => x.classList.remove('dn'));
@@ -1033,20 +1073,20 @@ function open(opts){
     q('.g-info').textContent = g.info || ''; q('.g-info').style.display = g.info ? '' : 'none';
     if(g.fireLabel && q('.g-fire').textContent !== g.fireLabel) q('.g-fire').textContent = g.fireLabel;
   };
-  const ready = () => { state = 'ready'; fresh(); g.draw(c); hud();
+  const ready = () => { state = 'ready'; musicStop(true); fresh(); g.draw(c); hud();
     if(left()<=0) return show(`<h2>No game time left</h2><p>Earn more game time, then come back and play.</p><button data-a="quit">Back to games</button>`);
     show(`<h2>${NAMES[opts.game]}</h2><p>${g.hint}</p><button class="gold" data-a="start">Start</button>`); };
   const play = () => { auInit(); hide(); state = 'play'; last = performance.now(); };
-  const pause = () => { if(state!=='play') return; state = 'pause'; auRest(); opts.flush && opts.flush(); show(`<h2>Paused</h2><p>${opts.test ? 'Test mode.' : 'Your game time is not counting down.'}</p><button class="gold" data-a="resume">Keep playing</button><button data-a="quit">Back to games</button>`); };
+  const pause = () => { if(state!=='play') return; state = 'pause'; musicStop(); auRest(); opts.flush && opts.flush(); show(`<h2>Paused</h2><p>${opts.test ? 'Test mode.' : 'Your game time is not counting down.'}</p><button class="gold" data-a="resume">Keep playing</button><button data-a="quit">Back to games</button>`); };
   const over = () => {
-    state = 'over'; SFX.over(); setTimeout(auRest, 1200); const prev = opts.test ? 0 : opts.best(), isBest = !opts.test && g.score>prev && g.score>0;
+    state = 'over'; musicStop(true); SFX.over(); setTimeout(auRest, 1200); const prev = opts.test ? 0 : opts.best(), isBest = !opts.test && g.score>prev && g.score>0;
     if(!opts.test){ opts.onScore(g.score); opts.flush(); }
     const again = left()>0;
     show(`<h2>Game over</h2><div class="big">${g.score}</div><p>${isBest ? 'New best score!' : opts.test ? 'Test mode. Scores are not saved.' : 'Your best: '+Math.max(prev,g.score)}</p>
       ${again ? '<button class="gold" data-a="again">Play again</button>' : '<p>Your game time is used up. Earn more to play again.</p>'}<button data-a="quit">Back to games</button>`);
     hud();
   };
-  const close = silent => { if(closed) return; closed = true; auRest(); cancelAnimationFrame(raf); clearTimeout(msgT); if(!opts.test) opts.flush();
+  const close = silent => { if(closed) return; closed = true; musicStop(true); auRest(); cancelAnimationFrame(raf); clearTimeout(msgT); if(!opts.test) opts.flush();
     if(!opts.test && opts.onQuit && g && (state==='play' || state==='pause') && g.score>0) opts.onQuit(g.score);
     window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', fit); document.removeEventListener('visibilitychange', vis); if(ro) ro.disconnect();
     root.remove(); current = null; if(!silent && opts.onClose) opts.onClose(); };
@@ -1151,6 +1191,7 @@ function open(opts){
       acc += dt; let n = 0;
       while(acc >= 1/60 && n++ < 6){ acc -= 1/60; g.update(inp); inp.tap.length = 0; if(g.over) break; }
       if(acc > 0.2) acc = 0;
+      if(g.music && !g.over) musicTick(g.music, g.musicStep ? g.musicStep() : .19);
       g.draw(c);
       if(shake>0){ shake--; cv.style.transform = `translate(${rnd(5)-2}px,${rnd(5)-2}px)`; } else if(cv.style.transform) cv.style.transform = '';
       if(g.over){ cv.style.transform = ''; over(); } else hud();
