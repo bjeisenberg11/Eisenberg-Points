@@ -1153,7 +1153,7 @@ function open(opts){
       if(!drag.axis && Math.max(Math.abs(e.clientX-drag.ox), Math.abs(e.clientY-drag.oy)) > 16) drag.axis = Math.abs(e.clientX-drag.ox) >= Math.abs(e.clientY-drag.oy) ? 'x' : 'y';
       if(drag.axis==='x'){ while(Math.abs(e.clientX-drag.x) >= step){ const s1 = Math.sign(e.clientX-drag.x); inp.tap.push(s1>0 ? 'right' : 'left'); drag.x += s1*step; drag.moved = true; } }
       const now = performance.now(); drag.hist.push([now, e.clientY]); while(drag.hist.length > 2 && now-drag.hist[0][0] > 150) drag.hist.shift();
-      if(drag.axis==='y'){ const dyAll = e.clientY-drag.oy; inp.held.down = dyAll > 45; if(Math.abs(dyAll) > 16) drag.moved = true; }
+      if(drag.axis==='y'){ const dyAll = e.clientY-drag.oy; drag.maxDy = Math.max(drag.maxDy||0, dyAll); inp.held.down = dyAll > 45; if(Math.abs(dyAll) > 16) drag.moved = true; }
       return;
     }
     if(g.oneSwipe && drag.moved) return;
@@ -1168,7 +1168,7 @@ function open(opts){
       if(!cancel){
         if(!drag.moved) inp.tap.push('rot');
         else if(drag.axis==='y' && dy > 60 && v > 0.7) inp.tap.push('drop');
-        else if(drag.axis==='y' && dy < -60) inp.tap.push('hold');
+        else if(drag.axis==='y' && dy < -60 && !(drag.maxDy > 20))   /* only a swipe that starts upward holds, not easing back up after speeding down */ inp.tap.push('hold');
       }
     }
     if(g.pad==='lrfire'){ inp.px = null; if(g.autoFire) inp.held.fire = fireId!==null; }
