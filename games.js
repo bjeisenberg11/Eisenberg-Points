@@ -1255,14 +1255,28 @@ function open(opts){
        so your finger never has to cover it. In Space Blasters the ship keeps firing while you drag.
      - Maze and hopping games: swipe in any direction to turn or hop. */
   let drag = null;
+  /* Swipe games follow every finger on its own, so a thumb resting on the screen never blocks a swipe from the other hand.
+     One swipe = one turn; to turn again without lifting, drag clearly a new way (about half an inch), so a small curl
+     at the end of a swipe never counts. */
+  const swipes = new Map(), AGAIN = 40;
   root.addEventListener('pointerdown', e => {
-    if(drag || e.target.closest('.g-bar,.g-dpad,.g-fire,.g-panel')) return;
+    if(e.target.closest('.g-bar,.g-dpad,.g-fire,.g-panel')) return;
+    if(g.pad==='dpad'){ e.preventDefault(); swipes.set(e.pointerId, {x:e.clientX, y:e.clientY, last:null, onCanvas:!!e.target.closest('canvas')}); return; }
+    if(drag) return;
     e.preventDefault();
     drag = {id:e.pointerId, x:e.clientX, y:e.clientY, moved:false, onCanvas:!!e.target.closest('canvas')};
     if(g.pad==='lrfire'){ drag.sx = g.ctrlX ? g.ctrlX() : W/2; inp.px = drag.sx; inp.tap.push('fire'); if(g.autoFire) inp.held.fire = true; }
     if(g.pad==='dpadfire'){ drag.t0 = performance.now(); drag.ox = e.clientX; drag.oy = e.clientY; drag.axis = null; drag.hist = [[drag.t0, e.clientY]]; }
   });
   root.addEventListener('pointermove', e => {
+    const sw = swipes.get(e.pointerId);
+    if(sw){
+      const dx = e.clientX-sw.x, dy = e.clientY-sw.y, dist = Math.max(Math.abs(dx), Math.abs(dy));
+      const dir = Math.abs(dx)>Math.abs(dy) ? (dx>0?'right':'left') : (dy>0?'down':'up');
+      if(sw.last && dir===sw.last){ sw.x = e.clientX; sw.y = e.clientY; return; }   /* still going the same way: keep the start point with the finger */
+      if(dist > (sw.last ? AGAIN : 14)){ inp.tap.push(dir); sw.last = dir; sw.x = e.clientX; sw.y = e.clientY; }
+      return;
+    }
     if(!drag || e.pointerId!==drag.id) return;
     const dx = e.clientX-drag.x, dy = e.clientY-drag.y;
     if(g.pad==='lrfire'){ const r = cv.getBoundingClientRect(); inp.px = clamp(drag.sx + dx*(W/r.width)*1.25, 0, W); if(Math.abs(dx) > 4) drag.moved = true; return; }
@@ -1274,10 +1288,10 @@ function open(opts){
       if(drag.axis==='y'){ const dyAll = e.clientY-drag.oy; drag.maxDy = Math.max(drag.maxDy||0, dyAll); inp.held.down = dyAll > 45; if(Math.abs(dyAll) > 16) drag.moved = true; }
       return;
     }
-    if(g.oneSwipe && drag.moved) return;
-    if(Math.max(Math.abs(dx),Math.abs(dy)) > 14){ inp.tap.push(Math.abs(dx)>Math.abs(dy) ? (dx>0?'right':'left') : (dy>0?'down':'up')); drag.x = e.clientX; drag.y = e.clientY; drag.moved = true; }
   });
   const dragEnd = (e, cancel) => {
+    const sw = swipes.get(e.pointerId);
+    if(sw){ swipes.delete(e.pointerId); if(!cancel && !sw.last && sw.onCanvas && opts.game==='hopper') inp.tap.push('up'); return; }
     if(!drag || e.pointerId!==drag.id) return;
     if(!cancel && !drag.moved && drag.onCanvas && opts.game==='hopper') inp.tap.push('up');
     if(g.pad==='dpadfire'){
