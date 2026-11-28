@@ -141,6 +141,7 @@ button.row:active{background:var(--press)}
 .legend i{width:10px;height:10px;border-radius:2px;margin:0 4px 0 10px;vertical-align:-1px}
 .legend i:first-child{margin-left:0}
 .tabs + .stats,.tabs + p + .stats{margin-top:10px}
+.stbl b.hi{color:var(--plus)}
 .half{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 #pop{position:fixed;inset:0;background:rgba(35,28,79,.62);display:none;align-items:center;justify-content:center;z-index:20;padding:20px;overflow:hidden}
 #pop.open{display:flex}
@@ -340,7 +341,7 @@ const FIREBASE_CONFIG = {
   appId: "1:271302574571:web:3eeb4d2949fb5a4b3819ae"
 };
 
-const VERSION = '1.42';   // bump on every change so Check for update can see it
+const VERSION = '1.43';   // bump on every change so Check for update can see it
 
 const KIDS = { emmie:{name:'Emmie',emoji:'🎨'}, dawson:{name:'Dawson',emoji:'⚾'} };
 const PARENTS = { mom:{name:'Mom',emoji:'👩'}, dad:{name:'Dad',emoji:'👨'} };
@@ -547,11 +548,11 @@ function awardGameTime(sel, mins, label){
   toast(`${added.map(a => KIDS[a.kid].name).join(' and ')} ${signed(mins)} min game time`, () => run(store.apply({set:back, delLog:added.map(a => ({kid:a.kid,id:a.id}))})));
   return true;
 }
-function gameTimeSheet(){
+function gameTimeSheet(pre){
   const f = openSheet(`
     <h3>Game time</h3>
     <div class="seg"><label><input type="radio" name="dir" value="1" checked><span>Award</span></label><label><input type="radio" name="dir" value="-1"><span>Deduct</span></label></div>
-    <div class="seg">${Object.keys(KIDS).map(k => `<label><input type="radio" name="kid" value="${k}"><span>${KIDS[k].name}</span></label>`).join('')}<label><input type="radio" name="kid" value="both"><span>Both</span></label></div>
+    <div class="seg">${Object.keys(KIDS).map(k => `<label><input type="radio" name="kid" value="${k}"${pre===k?' checked':''}><span>${KIDS[k].name}</span></label>`).join('')}<label><input type="radio" name="kid" value="both"${pre==='both'?' checked':''}><span>Both</span></label></div>
     <label class="field"><span>Minutes</span><input name="n" type="number" inputmode="numeric" min="1" max="240" value="10"></label>
     <div class="chips">${[5,10,15,30].map(n => `<button type="button" class="btn ghost small" data-min="${n}">${n} min</button>`).join('')}</div>
     <div class="msg"></div>
@@ -987,6 +988,7 @@ function gameRows(kid){
   const oldest = live.length ? live[live.length-1].ts : Infinity;
   return live.concat(full.filter(e => e.ts < oldest));
 }
+const hmc = sec => { const m = Math.round(Math.abs(sec)/60), h = Math.floor(m/60); return h ? `${h}h ${String(m%60).padStart(2,'0')}m` : `${m}m`; };
 const hm = sec => { const m = Math.round(Math.abs(sec)/60), h = Math.floor(m/60); return h ? `${h} hr${m%60 ? ' '+(m%60)+' min' : ''}` : `${m} min`; };
 function gameStats(kid, rows, a, z){
   const s = {earned:0, taken:0, played:0, n:0, untracked:0, from:{}, games:{}};
@@ -1048,6 +1050,44 @@ function statsView(kid){
     <h2>Top ways ${KIDS[kid].name} earned</h2>${list(s.up, 'No points earned in this period.')}
     <h2>Points lost for</h2>${list(s.down, 'No points taken away in this period.')}`;
 }
+function bothStats(){
+  const kids = Object.keys(KIDS), mk = monthKey();
+  kids.forEach(needFull);
+  const mStart = k => new Date(+k.slice(1,5), +k.slice(5)-1, 1).getTime(), mEnd = k => new Date(+k.slice(1,5), +k.slice(5), 1).getTime();
+  const gs = (k, m) => gameStats(k, statRows(k), mStart(m), mEnd(m));
+  const cur = Object.fromEntries(kids.map(k => [k, gs(k, mk)])), res = monthResult(mk);
+  const lead = vals => { const mx = Math.max(...vals); return vals.map(v => v===mx && mx>0 && vals.filter(x => x===mx).length===1); };
+  const row = (label, sub, vals, fmt) => { const l = lead(vals); return `<div class="row"><span class="grow"><span class="label">${label}</span>${sub ? `<div class="sub">${sub}</div>` : ''}</span>${vals.map((v,i) => `<span class="c"><b${l[i] ? ' class="hi"' : ''}>${fmt(v)}</b></span>`).join('')}</div>`; };
+  const head = first => `<div class="row head"><span class="grow">${first}</span>${kids.map(k => `<span class="c">${KIDS[k].name}</span>`).join('')}</div>`;
+  const anyUntracked = kids.some(k => cur[k].untracked);
+  const compare = `<div class="list stbl">${head(monthName(mk))}
+    ${row('Game time awarded', 'This month', kids.map(k => cur[k].earned), v => hmc(v))}
+    ${row('Game time played', anyUntracked ? 'Counted from Nov 26' : 'This month', kids.map(k => cur[k].played), v => hmc(v))}
+    ${row('Games played', 'This month', kids.map(k => cur[k].n), v => v)}
+    ${row('Banked now', '', kids.map(k => gameSecs(k)), v => hmc(v))}
+    ${row('Game score', res ? (res.tie ? 'Tied right now' : `${KIDS[res.winners[0]].name} leads`) : 'No finished games yet', kids.map(k => monthTotal(mk, k)), v => v)}</div>`;
+  /* month by month: game time awarded next to the game score and winner */
+  const first = Math.min(...kids.map(k => { const r = statRows(k).filter(e => e.gsec); return r.length ? Math.min(...r.map(e => e.ts)) : Infinity; }),
+    ...Object.keys((main && main.monthly) || {}).map(mStart));
+  const months = []; if(isFinite(first)){ const d = new Date(first); let m = monthKey(new Date(d.getFullYear(), d.getMonth(), 1)); while(m <= mk){ months.push(m); const y = +m.slice(1,5), mo = +m.slice(5); m = monthKey(new Date(y, mo, 1)); } }
+  const hist = months.reverse().slice(0, 12).map(m => {
+    const pr = main.prizes && main.prizes[m], r = pr ? {winners:pr.winners} : (m < mk ? monthResult(m) : null), win = r ? r.winners : [];
+    const tot = kids.map(k => monthTotal(m, k)), aw = kids.map(k => gs(k, m).earned);
+    return `<div class="row"><span class="grow"><span class="label">${monthName(m).split(' ')[0]}${m===mk ? ' (so far)' : ''}</span><div class="sub">${m===mk ? 'In progress' : win.length ? (win.length>1 ? 'Tie' : `${KIDS[win[0]].name} won`) : 'No winner'}</div></span>
+      ${kids.map((k,i) => `<span class="c"><b${win.includes(k) && m<mk ? ' class="hi"' : ''}>${hmc(aw[i])}</b><span class="sub">${tot[i]} pts</span></span>`).join('')}</div>`;
+  }).join('');
+  const loading = kids.some(k => !fullLog[k] && logs[k].length >= 300);
+  return `<h2>This month</h2>${compare}
+    <p class="soft">Game time awarded is every minute given this month, from activities or directly. Played is time actually spent in games.</p>
+    <h2>Month by month</h2>${loading ? '<p class="soft">Loading full history…</p>' : ''}
+    ${hist ? `<div class="list stbl">${head('Month')}${hist}</div><p class="soft">Each kid’s column shows game time awarded that month, with their game score under it. The winner’s minutes are in green.</p>` : '<div class="empty">No game time or game scores yet.</div>'}
+    <h2>${monthName(mk)} high scores</h2>
+    <p class="soft hint">Each game’s best this month earns game points (pts): its percent of par, up to ${PCT_CAP}. The game points are added. Highest total at month end wins ${PRIZE_PTS} points; a tie splits it.</p>
+    ${scoreTable(mk)}
+    <h2>Game log</h2><p class="soft hint">Every game the kids play. Only finished games (out of lives) count, and only a kid’s best score in each game each month goes toward the total.</p>
+    ${gameLogList()}
+    <h2>All-time best</h2><div class="list">${GAMES.map(g => `<div class="row"><span class="grow label">${g.name}</span><span class="sub">${esc(scoreLine(g.id))}</span></div>`).join('')}</div>`;
+}
 function gameSection(kid, rows, a, z, r){
   const s = gameStats(kid, rows, a, z), name = id => (GAMES.find(g => g.id===id) || {name:id}).name;
   const from = s.from.length ? `<div class="list">${s.from.slice(0,5).map(t => `<div class="row"><span class="emo">${esc(t.emoji||'')}</span><div class="grow"><div class="label">${esc(t.label)}</div><div class="sub">${t.n} ${t.n===1?'time':'times'}</div></div><span class="pts plus">+${hm(t.sec)}</span></div>`).join('')}</div>` : '<div class="empty">No game time earned in this period.</div>';
@@ -1088,46 +1128,32 @@ function parentView(){
       <h2>Ways to earn and lose points</h2><p class="soft">Tap one to change it, or to add a streak bonus or game time. Both kids share this list.</p>${edit('behaviors', byPts(sorted(main.behaviors)).sort((a,b)=>(b.pts>0)-(a.pts>0)), x=>signed(x.pts))}
       <h2>Prizes</h2>${edit('rewards', sorted(main.rewards).sort((a,b)=>a.cost-b.cost), x=>x.cost)}
       <h2>Cash out</h2><div class="list"><button class="row" data-act="cashrate"><span class="grow"><span class="label">Cash-out rate</span><div class="sub">Kids can trade points for dollars. Tap to change.</div></span><span class="pts">${cashRate()} pts = $1</span></button></div>
+      <h2>Test a game</h2><p class="soft">Test mode has no timer and doesn\u2019t save scores.</p>
+      <div class="list">${GAMES.map(g => `<div class="row"><span class="grow"><span class="label">${g.name}</span><div class="sub">${g.blurb}</div></span><button class="btn ghost small" data-act="play" data-id="${g.id}">Test</button></div>`).join('')}</div>
       <h2>This device</h2><div class="list">
         <button class="row" data-act="newpin"><span class="emo">🔑</span><span class="grow label">Change the parent PIN</span></button>
         <button class="row" data-act="switch"><span class="emo">🔁</span><span class="grow"><span class="label">Use this device as someone else</span><div class="sub">Signed in as ${PARENTS[role()].name}</div></span></button></div>`;
-  }
-  if(ui.games){
-    const mk = monthKey(), due = prizeDue(), kids = Object.keys(KIDS), r = monthResult(mk);
-    const past = Object.keys(main.prizes || {}).sort().reverse().slice(0,6);
-    return `${banner()}<div class="top"><h1>Games</h1><button class="btn small" data-act="games" data-id="">Done</button></div>
-      ${due.map(d => `<div class="ask"><div class="label">${monthName(d.mk)} game champion: ${d.tie ? 'tie, ' + d.winners.map(k => KIDS[k].name).join(' and ') : KIDS[d.winners[0]].name}</div>
-        <div>${d.totals.map(t => `${KIDS[t.kid].name} ${t.total}`).join(', ')}. ${d.tie ? `Award ${PRIZE_PTS/d.winners.length} points each.` : `Award ${PRIZE_PTS} points.`}</div>
-        <div class="acts"><button class="btn" data-act="prize" data-id="${d.mk}">Award prize</button></div></div>`).join('')}
-      <h2>Game time</h2>
-      <div class="list">${kids.map(k => `<div class="row"><span class="grow label">${KIDS[k].name}</span><span class="pts">${gameSecs(k) ? fmtGame(gameSecs(k)) : 'None'}</span></div>`).join('')}</div>
-      <button class="btn wide" style="margin-top:10px" data-act="gtime">Award or deduct game time</button>
-      <h2>${monthName(mk)} high scores</h2>
-      <p class="soft hint">Each game\u2019s best this month earns game points (pts): its percent of par, up to ${PCT_CAP}. The game points are added. Highest total at month end wins ${PRIZE_PTS} points; a tie splits it.${r ? ` ${r.tie ? 'Tied right now.' : `${KIDS[r.winners[0]].name} leads.`}` : ''}</p>
-      ${scoreTable(mk)}
-      <h2>Game log</h2><p class="soft hint">Every game the kids play. Only finished games (out of lives) count, and only a kid\u2019s best score in each game each month goes toward the total.</p>
-      ${gameLogList()}
-      <h2>All-time best</h2><div class="list">${GAMES.map(g => `<div class="row"><span class="grow label">${g.name}</span><span class="sub">${esc(scoreLine(g.id))}</span></div>`).join('')}</div>
-      ${past.length ? `<h2>Past champions</h2><div class="list">${past.map(m => { const pr = main.prizes[m]; return `<div class="row"><span class="grow label">${monthName(m)}</span><span class="sub">${pr.winners.map(k => KIDS[k].name).join(' and ')}, +${pr.each}${pr.winners.length>1?' each':''}</span></div>`; }).join('')}</div>` : ''}
-      <h2>Test a game</h2><p class="soft hint">Test mode has no timer and doesn\u2019t save scores.</p>
-      <div class="list" style="margin-top:8px">${GAMES.map(g => `<div class="row"><span class="grow"><span class="label">${g.name}</span><div class="sub">${g.blurb}</div></span><button class="btn ghost small" data-act="play" data-id="${g.id}">Test</button></div>`).join('')}</div>`;
   }
   const top = `${banner()}<div class="top"><span class="soft">Signed in as ${PARENTS[role()].name}</span><button class="btn ghost small" data-act="setup" data-id="1">Set up</button></div>`;
   if(!ui.kid){   // home: pick a kid; no balances on this screen
     const btn = k => { const n = waitingFor(k); return `<button class="kidbtn k-${k}" data-act="kid" data-id="${k}"><span class="dot"></span><span class="n">${KIDS[k].name}</span>${n?`<span class="cnt" aria-label="${n} waiting">${n}</span>`:''}<span class="chev">›</span></button>`; };
     return `${top}<h1>Points</h1><h2 class="first">Accounts</h2><div class="kidpick">${Object.keys(KIDS).map(btn).join('')}
-        <button class="kidbtn k-both" data-act="kid" data-id="both"><span class="dot"></span><span class="n">Both kids</span><span class="chev">›</span></button></div>
+        <button class="kidbtn k-both" data-act="kid" data-id="both"><span class="dot"></span><span class="n">Both kids</span>${prizeDue().length ? '<span class="cnt" aria-label="Monthly game prize ready">🏆</span>' : ''}<span class="chev">›</span></button></div>
       <h2>Quick award</h2><p class="soft hint">Pick an item, then choose who receives it.</p>${activities(null)}
-      <h2>Games</h2><div class="kidpick"><button class="kidbtn k-both" data-act="games" data-id="1"><span class="dot"></span><span class="n">Game time, high scores and tests</span>${prizeDue().length ? '<span class="cnt" aria-label="Monthly prize ready">🏆</span>' : ''}<span class="chev">›</span></button></div>`;
+`;
   }
   const sel = ui.kid, both = sel==='both', who = both ? 'both kids' : KIDS[sel].name;
-  if(both) ui.ptab = 'give';
+  if(both && ui.ptab==='history') ui.ptab = 'give';
   let body = '';
-  if(ui.ptab==='give') body = activities(sel);
+  if(ui.ptab==='give') body = activities(sel) + `<h2>Game time</h2><button class="btn wide ghost" data-act="gtime">Award or deduct game time</button>`;
   else if(ui.ptab==='history') body = `<h2>${who}’s history</h2>${historyList(sel,true)}`;
-  else body = statsView(sel);
+  else body = both ? bothStats() : statsView(sel);
   const back = `<div class="top"><button class="btn ghost small" data-act="kid" data-id="">‹ All kids</button>${both ? `<span class="soft">Signed in as ${PARENTS[role()].name}</span>` : `<button class="btn ghost small" data-act="viewas" data-id="${sel}">View as ${KIDS[sel].name}</button>`}</div>`;
-  if(both) return `${banner()}${back}<div class="bothhead"><h1>Both kids</h1><p class="soft">Points you give or take away here go to Emmie and Dawson.</p></div>${body}`;
+  if(both) return `${banner()}${back}<div class="bothhead"><h1>Both kids</h1><p class="soft">${ui.ptab==='give' ? 'Points you give or take away here go to Emmie and Dawson.' : 'Game time and game scores side by side.'}</p></div>
+    ${prizeDue().map(d => `<div class="ask"><div class="label">${monthName(d.mk)} game champion: ${d.tie ? 'tie, ' + d.winners.map(k => KIDS[k].name).join(' and ') : KIDS[d.winners[0]].name}</div>
+      <div>${d.totals.map(t => `${KIDS[t.kid].name} ${t.total}`).join(', ')}. ${d.tie ? `Award ${PRIZE_PTS/d.winners.length} points each.` : `Award ${PRIZE_PTS} points.`}</div>
+      <div class="acts"><button class="btn" data-act="prize" data-id="${d.mk}">Award prize</button></div></div>`).join('')}
+    ${tabs('ptab', [['give','Points'],['week','Games & stats']])}<div>${body}</div>`;
   return `${banner()}${back}${ticket(sel, {notes:[`Game time: ${gameSecs(sel) ? fmtGame(gameSecs(sel)) : 'none'}`]})}
     ${petitionsFor(sel).map(q => `<div class="ask"><div class="label">${who} asks for ${signed(q.pts)}: ${esc(q.label)}</div><div>Asked ${when(q.ts).toLowerCase()}. Points count only if you approve.</div>
       <div class="acts"><button class="btn ghost" data-act="pdecline" data-id="${q.id}">Decline</button><button class="btn" data-act="papprove" data-id="${q.id}">Approve</button></div></div>`).join('')}
@@ -1204,7 +1230,7 @@ document.addEventListener('click', e => {
     else if(act==='custom') customSheet(ui.kid, id);
     else if(act==='pick') pickSheet(id);
     else if(act==='play') playGame(id, true);
-    else if(act==='gtime') gameTimeSheet();
+    else if(act==='gtime') gameTimeSheet(ui.kid);
     else if(act==='prize') awardPrize(id);
     else if(act==='remove'){ removeEntry(b.dataset.kid, id, +b.dataset.pts, +b.dataset.gsec || 0); toast('Removed'); }
     else if(act==='approve') answer(id, true);
@@ -1245,7 +1271,7 @@ try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () =>
     knownAsks = new Set(Object.keys(asks));
   }, fail);
   for(const k in KIDS) store.subLog(k, rows => { logs[k] = rows; logsLoaded[k] = true; render(); checkNews(k); }, fail);
-  for(const k in KIDS) store.subGames(k, rows => { gamesLog[k] = rows; if(ui.games) render(); });
+  for(const k in KIDS) store.subGames(k, rows => { gamesLog[k] = rows; if(ui.kid) render(); });
 })();
 </script>
 </body>
